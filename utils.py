@@ -15,6 +15,8 @@ def read_conll(filename):
 
     Returns:
         graphs: string of dependency representations of modifiers and heads.
+        annotated_sentences: List of Lists where each list contains the ConlluToken objects for each
+        token in a sentence.
     """
 
     def get_word(columns):
@@ -25,7 +27,7 @@ def read_conll(filename):
         Returns:
             ConlluToken object for each word which enables accessing the word's fields.
         """
-        return ConlluToken(columns[FORM], columns[LEMMA], columns[UPOS], columns[XPOS], columns[FEATS], columns[HEAD], columns[DEPREL], columns[DEPS], columns[MISC])
+        return ConlluToken(columns[ID], columns[FORM], columns[LEMMA], columns[UPOS], columns[XPOS], columns[FEATS], columns[HEAD], columns[DEPREL], columns[DEPS], columns[MISC])
 
 
     def get_graph(graphs, words, tokens, edges):
@@ -48,6 +50,7 @@ def read_conll(filename):
     words = []
     tokens = []
     edges = []
+    annotated_sentences = []
 
     sentence_start = False
     while True:
@@ -55,6 +58,7 @@ def read_conll(filename):
         if not line:
             if len(words) > 0:
                 get_graph(graphs, words, tokens, edges)
+                annotated_sentences.append(words)
                 # Clear lists for next sentence
                 words, tokens, edges = [], [], []
             break
@@ -71,6 +75,7 @@ def read_conll(filename):
             sentence_start = False
             if len(words) > 0:
                 get_graph(graphs, words, tokens, edges)
+                annotated_sentences.append(words)
                 words, tokens, edges = [], [], []
             continue
 
@@ -105,10 +110,6 @@ def read_conll(filename):
                 head = -1
             edges.append((head, int(columns[ID]), columns[DEPREL].split(":")[0]))
 
-            for word in words:
-                print(word)
-                print(word.upos)
-
     file.close()
 
-    return graphs
+    return graphs, annotated_sentences

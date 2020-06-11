@@ -17,13 +17,14 @@ def argparser():
     help='Whether to save statistics.')
     ap.add_argument('-q', '--quiet', default=False, action='store_true',
     help='Do not display certain helper information.')
-    
     return ap
 
 def main(argv):
     args = argparser().parse_args(argv[1:])
     cg = ConlluGraph()
-    graphs = cg.build_dataset(args.input)  
+    graphs, annotated_sentences = cg.build_dataset(args.input)
+    edges = cg.build_edges(annotated_sentences)
+
     return 0
 
 
