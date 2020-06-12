@@ -2,6 +2,7 @@
 
 import sys
 from conllugraph import ConlluGraph
+from evaluate import EvaluateConllu
 
 
 def argparser():
@@ -21,9 +22,17 @@ def argparser():
 
 def main(argv):
     args = argparser().parse_args(argv[1:])
+    
     cg = ConlluGraph()
+    # get annotated sentences
     graphs, annotated_sentences = cg.build_dataset(args.input)
-    edges = cg.build_edges(annotated_sentences)
+
+    #    
+    sentence_edges = cg.build_edges(annotated_sentences)
+
+    # evaluation
+    ec = EvaluateConllu()
+    evaluated_edges = ec.evaluate(sentence_edges, annotated_sentences)
 
     return 0
 
