@@ -29,7 +29,6 @@ def parse_features(features):
     return features_dict
 
 
-
 def parse_deps(deps):
     """
     Parses the token's deps features.
@@ -38,10 +37,23 @@ def parse_deps(deps):
         deps: the unprocessed deps features.
     
     Returns:
-        parsed_deps: a list? with separate deps features.
+        parsed_deps: a list of tuples of parsed edeps for each token.
+        [('11', 'acl:relcl'), ('15', 'conj:and')]
     """
-    
-    raise NotImplementedError
+    parsed_deps = []
+
+    for edep in deps.split("|"):
+        if edep == "_" or not edep:
+            continue
+        parts = edep.split(":")
+        enhanced_head = parts[0]
+        tail = parts[1:]
+        # stitch the remaining parts together again
+        enhanced_deprel = ":".join(tail)
+        parsed_edep = (enhanced_head, enhanced_deprel)
+        parsed_deps.append(parsed_edep)
+
+    return parsed_deps
 
 
 class ConlluToken:
@@ -62,8 +74,6 @@ class ConlluToken:
                 deps = None,
                 misc = None):
         
-        self.features = {}
-
         self.id = id
         self.word = word
         self.lemma = lemma if lemma else "_"
@@ -74,12 +84,9 @@ class ConlluToken:
         self.head = head if head else "_"
         self.deprel = deprel if deprel else "_"
         self.deps = deps if deps else "_"
-        #self.deps_parsed = parse_deps(self.deps)    
+        #print(self.deps)
+        self.deps_parsed = parse_deps(self.deps)    
         self.misc = misc if misc else "_"
-
-        # node's immediate children
-        self.children = []
-
 
     def cleaned(self):
         return ConlluToken(self.word, "_")
