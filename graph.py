@@ -29,6 +29,21 @@ def parse_features(features):
     return features_dict
 
 
+
+def parse_deps(deps):
+    """
+    Parses the token's deps features.
+
+    Arguments:
+        deps: the unprocessed deps features.
+    
+    Returns:
+        parsed_deps: a list? with separate deps features.
+    """
+    
+    raise NotImplementedError
+
+
 class ConlluToken:
     """
     ConlluToken
@@ -58,7 +73,8 @@ class ConlluToken:
         self.feats_set = parse_features(self.feats)
         self.head = head if head else "_"
         self.deprel = deprel if deprel else "_"
-        self.deps = deps if deps else "_"        
+        self.deps = deps if deps else "_"
+        #self.deps_parsed = parse_deps(self.deps)    
         self.misc = misc if misc else "_"
 
         # node's immediate children

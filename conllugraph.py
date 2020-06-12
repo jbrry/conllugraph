@@ -43,6 +43,38 @@ class ConlluGraph:
         return (self.modifier, self.head, self.deprel)
 
 
+    def build_subgraph(self, token, sentence_graph, annotated_sentence):
+        """ Builds subgraphs of child, parent and grandparent nodes.
+        
+        node1 (deprel) node2 (deprel) node3
+        e.g. 3|at (case) 5|desk (nmod) 2|girl
+        """
+
+        # child / node 1
+        part_1 = "{}|{} ({})".format(token.id, token.lemma, token.deprel)
+
+        # check if the head is root
+        if (int(token.head) - 1) == -1:
+            raise ValueError
+        # get `ConlluToken` of parent
+        parent_token = annotated_sentence[int(token.head) - 1]
+        parent_head = parent_token.head
+
+        # parent / node 2
+        part_2 = "{}|{} ({})".format(token.head, parent_token.word, parent_token.deprel)
+
+        # get `ConlluToken` of grand-parent
+        if (int(parent_head) - 1) == -1:
+            grandparent = "*ROOT*"
+        else:
+            grandparent_token = annotated_sentence[int(parent_head) - 1]
+            grandparent = grandparent_token.word
+        
+        # grandparent / node 3
+        part_3 = "{}|{}".format(parent_head, grandparent)
+
+        return "{} {} {}".format(part_1, part_2, part_3)
+
     def evaluate_dataset(self, annotated_sentences):
         print("Evaluating dataset.")
         

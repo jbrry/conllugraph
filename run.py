@@ -23,16 +23,17 @@ def argparser():
 def main(argv):
     args = argparser().parse_args(argv[1:])
     
-    cg = ConlluGraph()
+    conllu_graph = ConlluGraph()
     # get annotated sentences
-    graphs, annotated_sentences = cg.build_dataset(args.input)
+    graphs, annotated_sentences = conllu_graph.build_dataset(args.input)
 
-    #    
-    sentence_edges = cg.build_edges(annotated_sentences)
+    # build individual edges for the sentence
+    sentence_edges = conllu_graph.build_edges(annotated_sentences)
 
     # evaluation
-    ec = EvaluateConllu()
-    evaluated_edges = ec.evaluate(sentence_edges, annotated_sentences)
+    evaluate_conllu = EvaluateConllu()
+    evaluated_edges = evaluate_conllu.evaluate(sentence_edges, annotated_sentences)
+
 
     return 0
 
