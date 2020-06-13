@@ -47,9 +47,9 @@ def parse_deps(deps):
             continue
         parts = edep.split(":")
         enhanced_head = parts[0]
-        tail = parts[1:]
+        remaining_label = parts[1:]
         # stitch the remaining parts together again
-        enhanced_deprel = ":".join(tail)
+        enhanced_deprel = ":".join(remaining_label)
         parsed_edep = (enhanced_head, enhanced_deprel)
         parsed_deps.append(parsed_edep)
 
@@ -84,8 +84,7 @@ class ConlluToken:
         self.head = head if head else "_"
         self.deprel = deprel if deprel else "_"
         self.deps = deps if deps else "_"
-        #print(self.deps)
-        self.deps_parsed = parse_deps(self.deps)    
+        self.deps_set = parse_deps(self.deps)    
         self.misc = misc if misc else "_"
 
     def cleaned(self):
@@ -95,7 +94,8 @@ class ConlluToken:
         return ConlluToken(self.id, self.word, self.lemma, self.upos, self.xpos, self.feats, self.head, self.deprel, self.deps, self.misc)
 
     def __str__(self):
-        return str(self.word)
+       conllu_row = [str(self.id), self.word, self.lemma, self.upos, self.xpos, self.feats, str(self.head), self.deps, self.misc]
+       return '\t'.join(['_' if item is None else item for item in conllu_row])
 
     def __repr__(self):
         #return "{}_{}_{}|||{}".format(self.word, self.deprel, self.head, self.deps)

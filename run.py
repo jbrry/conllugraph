@@ -33,8 +33,7 @@ def main(argv):
     # evaluation
     evaluate_conllu = EvaluateConllu()
     evaluated_edges = evaluate_conllu.evaluate(sentence_edges, annotated_sentences)
-
-
+    
     return 0
 
 

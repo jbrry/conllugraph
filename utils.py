@@ -46,6 +46,8 @@ def read_conll(filename):
 
     file = open(filename, "r")
 
+    root = ConlluToken(0, '*ROOT*', '*ROOT*', 'ROOT-UPOS', 'ROOT-XPOS', '_', -1, 'rroot', '-1:rroot', '_')
+
     graphs = []
     words = []
     tokens = []
@@ -55,11 +57,11 @@ def read_conll(filename):
     sentence_start = False
     while True:
         line = file.readline()
+        # end of file
         if not line:
             if len(words) > 0:
                 get_graph(graphs, words, tokens, edges)
                 annotated_sentences.append(words)
-                # Clear lists for next sentence
                 words, tokens, edges = [], [], []
             break
         line = line.rstrip("\r\n")
@@ -71,6 +73,8 @@ def read_conll(filename):
                 continue
             # Start a new sentence
             sentence_start = True
+            # Append dummy ROOT to start of sentence
+            words.append(root)
         if not line:
             sentence_start = False
             if len(words) > 0:
