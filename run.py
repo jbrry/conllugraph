@@ -25,14 +25,17 @@ def main(argv):
     
     conllu_graph = ConlluGraph()
     # get annotated sentences
-    graphs, annotated_sentences = conllu_graph.build_dataset(args.input)
+    annotated_sentences = conllu_graph.build_dataset(args.input)
 
     # build individual edges for the sentence
     sentence_edges = conllu_graph.build_edges(annotated_sentences)
 
     # evaluation
     evaluate_conllu = EvaluateConllu()
-    evaluated_edges = evaluate_conllu.evaluate(sentence_edges, annotated_sentences)
+    deprel_count, modifier_lemmas = evaluate_conllu.evaluate(sentence_edges, annotated_sentences)
+
+    print(deprel_count)
+    print(modifier_lemmas)
     
     return 0
 

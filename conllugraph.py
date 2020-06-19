@@ -4,14 +4,14 @@ class ConlluGraph:
     def __init__(self):
         """ ConlluGraph. """
 
-        self.ignore_edge = False
+        pass
 
     def build_dataset(self, filename):
-        """Reads an input CoNLL-U file and returns ConlluToken objects for each token in a sentence."""
+        """Reads an input CoNLL-U file and returns a list of ConlluToken objects for each token in a sentence."""
 
         print("Building dataset using {}".format(filename))
-        graphs, annotated_sentences = read_conll(filename)
-        return graphs, annotated_sentences
+        annotated_sentences = read_conll(filename)      
+        return annotated_sentences
 
     def build_edges(self, annotated_sentences):
         """Builds individual edges."""
@@ -37,18 +37,11 @@ class ConlluGraph:
 
     def build_subgraph(self, token, sentence_graph, annotated_sentence):
         """ Builds subgraphs of child, parent and grandparent nodes. """
-
-        # parent / node 2
+        
         parent_token = annotated_sentence[int(token.head)]
-        # grandparent / node 3
         grandparent_token = annotated_sentence[int(parent_token.head)]
         sub_graph = SubGraph(token, parent_token, grandparent_token)
         return sub_graph
-
-    def walk_up_tree(self, annotated_sentences):
-        print("Walk up the tree.")
-        
-        raise NotImplementedError
 
 
 class SubGraph(object):
@@ -58,5 +51,14 @@ class SubGraph(object):
         self.node2 = node2
         self.node3 = node3
 
-    def __repr__(self):         
-         return "{}".format(node1.id, node1.lemma, node1.deprel)
+    def __str__(self):         
+         return "{}|{} ({})  {}|{} ({})  {}|{}".format(self.node1.id, self.node1.lemma, self.node1.deprel,
+                                                        self.node2.id, self.node2.word, self.node2.deps_set, 
+                                                        self.node3.id, self.node3.word)
+
+
+
+
+
+
+    

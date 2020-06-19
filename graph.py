@@ -15,7 +15,6 @@ def parse_features(features):
     Returns:
         features_dict: a dictionary with separated morphological features.
     """
-    
     features_dict = {}
 
     if features == "_":
@@ -37,7 +36,7 @@ def parse_deps(deps):
         deps: the unprocessed deps features.
     
     Returns:
-        parsed_deps: a list of tuples of parsed edeps for each token.
+        parsed_deps: a list of tuples of parsed edeps for each token:
         [('11', 'acl:relcl'), ('15', 'conj:and')]
     """
     parsed_deps = []
@@ -56,6 +55,10 @@ def parse_deps(deps):
     return parsed_deps
 
 
+def add_dependents(x):
+
+    return 
+
 class ConlluToken:
     """
     ConlluToken
@@ -72,7 +75,8 @@ class ConlluToken:
                 head = None,
                 deprel = None,
                 deps = None,
-                misc = None):
+                misc = None,
+                children = None):
         
         self.id = id
         self.word = word
@@ -87,6 +91,10 @@ class ConlluToken:
         self.deps_set = parse_deps(self.deps)    
         self.misc = misc if misc else "_"
 
+        # dependents of the current word
+        self.children = []
+
+
     def cleaned(self):
         return ConlluToken(self.word, "_")
 
@@ -94,47 +102,10 @@ class ConlluToken:
         return ConlluToken(self.id, self.word, self.lemma, self.upos, self.xpos, self.feats, self.head, self.deprel, self.deps, self.misc)
 
     def __str__(self):
-       conllu_row = [str(self.id), self.word, self.lemma, self.upos, self.xpos, self.feats, str(self.head), self.deps, self.misc]
+       conllu_row = [str(self.id), self.word, self.lemma, self.upos, self.xpos, self.feats, str(self.head), self.deprel, self.deps, self.misc]
        return '\t'.join(['_' if item is None else item for item in conllu_row])
 
     def __repr__(self):
         #return "{}_{}_{}|||{}".format(self.word, self.deprel, self.head, self.deps)
         return self.word
 
-
-class DependencyGraph(object):
-    """
-    DependencyGraph
-    """
-    def __init__(self, words, tokens=None):
-        #  Token is a tuple (start, end, form)
-        if tokens is None:
-            tokens = []
-        self.nodes = np.array([ConlluToken("*ROOT*", "*ROOT*")] + list(words))
-        self.tokens = tokens
-        self.heads = np.array([-1] * len(self.nodes))
-        self.rels = np.array(["_"] * len(self.nodes), dtype=object)
-
-    def __copy__(self):
-        cls = self.__class__
-        result = cls.__new__(cls)
-        result.nodes = self.nodes
-        result.tokens = self.tokens
-        result.heads = self.heads.copy()
-        result.rels = self.rels.copy()
-        return result
-
-    def cleaned(self, node_level=True):
-        if node_level:
-            return DependencyGraph([node.cleaned() for node in self.nodes[1:]], self.tokens)
-        else:
-            return DependencyGraph([node.clone() for node in self.nodes[1:]], self.tokens)
-
-    def attach(self, head, tail, rel):
-        self.heads[tail] = head
-        self.rels[tail] = rel
-
-    def __repr__(self):
-        # word_representation -> deprel head head_word_representation
-        # they_PRON ->(nsubj)  21 (performed_VERB)
-        return "\n".join(["{} ->({})  {} ({})".format(str(self.nodes[i]), self.rels[i], self.heads[i], self.nodes[self.heads[i]]) for i in range(len(self.nodes))])

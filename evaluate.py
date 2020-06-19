@@ -19,13 +19,17 @@ class EvaluateConllu(object):
         """ Perform various types of evaluation. """
 
         for sentence_graph, annotated_sentence in zip(sentence_graphs, annotated_sentences):
-            self.evaluate_labels(sentence_graph, annotated_sentence)
+            self.deprel_count, self.modifier_lemmas = self.evaluate_labels(sentence_graph, annotated_sentence)
+
+        return self.deprel_count, self.modifier_lemmas
 
 
     def evaluate_labels(self, sentence_graph, annotated_sentence):
         """ Evaluates certain dependency labels, e.g. case, mark etc."""
 
         conllu_graph = ConlluGraph()
+        
+
         for token_id, edge in sentence_graph.items():
             token = annotated_sentence[int(token_id)]
             edge = edge.pop()
@@ -34,30 +38,62 @@ class EvaluateConllu(object):
 
             if deprel == "case":
                 self.deprel_count.update([deprel])
+                # get child, parent, grandparent subgraph
                 sub_graph = conllu_graph.build_subgraph(token, sentence_graph, annotated_sentence)
-                modifier_lemma = sub_graph.node1.lemma
+                modifier_lemma = token.lemma
+                # check if the lemma has fixed children
+                for child in token.children:
+                    if child.deprel == "fixed":
+                        # attach fixed children to lemma form
+                        modifier_lemma = modifier_lemma + "_" + child.lemma
+
                 parent_deps = sub_graph.node2.deps_set
 
+                self.attached_lemma = False
+                # check each of the deps items
                 for dep_item in parent_deps:
-                    e_deprel = dep_item[1]
-                    parts = e_deprel.split(":")
-                    label_suffix = parts[-1]
-                    if modifier_lemma == label_suffix:
-                        self.modifier_lemmas.update(["case_attached"])
+
+                    if not self.attached_lemma:
+                        e_deprel = dep_item[1]
+                        parts = e_deprel.split(":")
+                        label_suffix = parts[-1]
+
+                        if modifier_lemma.lower() == label_suffix:
+                            self.modifier_lemmas.update(["case_attached"])
+                            self.attached_lemma = True
+                            print(str(sub_graph))
+                            print(f"{clr.OKGREEN}right lemma: {modifier_lemma} ===> {label_suffix} {clr.ENDC}")
+
+                if not self.attached_lemma:
+                    # root labels won't include lemma
+                    if label_suffix == "root":
+                        continue
+                    # neither will poss, e.g. 's
+                    elif label_suffix == "poss":
+                        continue
                     else:
                         self.modifier_lemmas.update(["case_missed"])
-                        # adjust for cases of mwts/poss?
-                        print(f"wrong lemma: {modifier_lemma} ===> {label_suffix}")
+                        print(str(sub_graph))
+                        print(f"{clr.FAIL}wrong lemma: {modifier_lemma} ===> {label_suffix}{clr.ENDC}")
 
         return self.deprel_count, self.modifier_lemmas
 
 
 
 
-
-
-
-
+class clr:
+    """ Prints coloured text in terminal.
+    
+    https://stackoverflow.com/questions/287871/how-to-print-colored-text-in-terminal-in-python
+    """
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 
 

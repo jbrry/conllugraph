@@ -1,6 +1,6 @@
 # based on the C2L2 utils in https://github.com/CoNLL-UD-2017/C2L2/blob/master/cdparser_multi/io.py
 
-from graph import ConlluToken, DependencyGraph
+from graph import ConlluToken
 
 # set CoNLL-U columns as indices
 ID, FORM, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC = range(10)
@@ -14,9 +14,8 @@ def read_conll(filename):
         filename: relative path of input file.
 
     Returns:
-        graphs: string of dependency representations of modifiers and heads.
-        annotated_sentences: List of Lists where each list contains the ConlluToken objects for each
-        token in a sentence.
+        annotated_sentences: List of Lists where each list contains the ConlluToken objects
+        for each token in a sentence.
     """
 
     def get_word(columns):
@@ -25,30 +24,28 @@ def read_conll(filename):
             columns: List containing the 10 CoNLL-U columns at a particular row.
 
         Returns:
-            ConlluToken object for each word which enables accessing the word's fields.
+            ConlluToken object for the row which enables accessing the word's fields.
         """
         return ConlluToken(columns[ID], columns[FORM], columns[LEMMA], columns[UPOS], columns[XPOS], columns[FEATS], columns[HEAD], columns[DEPREL], columns[DEPS], columns[MISC])
 
 
-    def get_graph(graphs, words, tokens, edges):
+    def get_children(words):
         """
         Arguments:
-            graphs: List of `graph` strings.
-            words: List of `word` objects returned by the ConlluToken class.
-            tokens: List to store MWTs.
-            edges: List of tuples containing (h, m, r) items.
+            words: List of word objects
         """
-        graph = DependencyGraph(words, tokens)
-        for (h, d, r) in edges:
-            # call the attach method in DependencyGraph
-            graph.attach(h, d, r)
-        graphs.append(graph)
+        # skip ROOT
+        for word in words[1:]:
+            parent = words[int(word.head)]
+            # don't append children for notional ROOT
+            if int(parent.id) != 0:
+                parent.children.append(word)
+
 
     file = open(filename, "r")
 
     root = ConlluToken(0, '*ROOT*', '*ROOT*', 'ROOT-UPOS', 'ROOT-XPOS', '_', -1, 'rroot', '-1:rroot', '_')
 
-    graphs = []
     words = []
     tokens = []
     edges = []
@@ -60,7 +57,7 @@ def read_conll(filename):
         # end of file
         if not line:
             if len(words) > 0:
-                get_graph(graphs, words, tokens, edges)
+                get_children(words)
                 annotated_sentences.append(words)
                 words, tokens, edges = [], [], []
             break
@@ -78,7 +75,7 @@ def read_conll(filename):
         if not line:
             sentence_start = False
             if len(words) > 0:
-                get_graph(graphs, words, tokens, edges)
+                get_children(words)
                 annotated_sentences.append(words)
                 words, tokens, edges = [], [], []
             continue
@@ -116,4 +113,4 @@ def read_conll(filename):
 
     file.close()
 
-    return graphs, annotated_sentences
+    return annotated_sentences
