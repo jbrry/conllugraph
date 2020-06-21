@@ -55,10 +55,6 @@ def parse_deps(deps):
     return parsed_deps
 
 
-def add_dependents(x):
-
-    return 
-
 class ConlluToken:
     """
     ConlluToken

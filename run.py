@@ -34,9 +34,11 @@ def main(argv):
     evaluate_conllu = EvaluateConllu()
     deprel_count, modifier_lemmas = evaluate_conllu.evaluate(sentence_edges, annotated_sentences)
 
-    print(deprel_count)
-    print(modifier_lemmas)
-    
+    # perform some checks
+    num_case_labels = deprel_count["case"]
+    case_values = sum(x for x in modifier_lemmas.values())
+    assert num_case_labels == case_values, f"some deprels are unaccounted for when considering the following cases {modifier_lemmas.keys()}"
+        
     return 0
 
 
