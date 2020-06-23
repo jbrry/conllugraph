@@ -2,8 +2,9 @@ Tool for manipulating CoNLL-U files.
 
 The goal is to build small graphs representing dependency structures so they can be analysed.
 
+To run the code with a gold and system file for a tbid or list of colon-separated tbids run:
 
 ```
-python run.py -i ~/Enhanced-UD-Parsing/data/train-dev/UD_English-EWT/en_ewt-ud-dev.conllu
+./scripts/run.sh sv_talbanken:en_ewt
 ```
 
