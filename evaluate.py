@@ -14,20 +14,19 @@ class EvaluateConllu(object):
         self.deprel_count = Counter()
         self.modifier_lemmas = Counter()
         self.morph_case = Counter()
-        
 
-    def evaluate(self, sentence_graphs, annotated_sentences):
+
+    def evaluate(self, sentence_graphs, annotated_sentences, attach_morphological_case):
         """ Perform various types of evaluation. """
 
         for sentence_graph, annotated_sentence in zip(sentence_graphs, annotated_sentences):
-            self.deprel_count, self.modifier_lemmas, self.morph_case = self.evaluate_labels(sentence_graph, annotated_sentence)
+            self.deprel_count, self.modifier_lemmas, self.morph_case = self.evaluate_labels(sentence_graph, annotated_sentence, attach_morphological_case)
 
         return self.deprel_count, self.modifier_lemmas, self.morph_case
 
 
-    def evaluate_labels(self, sentence_graph, annotated_sentence):
-        """ Evaluates certain dependency labels, e.g. case, mark etc."""
-
+    def evaluate_labels(self, sentence_graph, annotated_sentence, attach_morphological_case):
+        """ Evaluates certain dependency labels, e.g. case, mark etc. """
         
         for token_id, edge in sentence_graph.items():
             token = annotated_sentence[int(token_id)]
@@ -36,12 +35,12 @@ class EvaluateConllu(object):
             deprel = str(edge[-1])
 
             if deprel == "case":
-                self.deprel_count, self.modifier_lemmas, self.morph_case = self.evaluate_case(token, sentence_graph, annotated_sentence, deprel)
+                self.deprel_count, self.modifier_lemmas, self.morph_case = self.evaluate_case(token, sentence_graph, annotated_sentence, deprel, attach_morphological_case)
 
         return self.deprel_count, self.modifier_lemmas, self.morph_case 
 
 
-    def evaluate_case(self, token, sentence_graph, annotated_sentence, deprel):
+    def evaluate_case(self, token, sentence_graph, annotated_sentence, deprel, attach_morphological_case):
         """ Evaluates case labels to see if the grandchild lemma is 
         attached in the enhanced deprel of its parent. """
 
@@ -61,14 +60,18 @@ class EvaluateConllu(object):
         parent_deps = sub_graph.node2.deps_set
 
         # Check case from morph feats
-        parent_morph_feats = sub_graph.node2.feats_set
-        # some tokens won't have this key
-        try:
-            parent_morph_case = parent_morph_feats["Case"]
-            self.morph_case.update([parent_morph_case])
-        except:
-            KeyError
-        
+        if attach_morphological_case:
+            parent_morph_feats = sub_graph.node2.feats_set
+            # some tokens won't have this key
+            try:
+                parent_morph_case = parent_morph_feats["Case"]
+                self.morph_case.update([parent_morph_case])
+                parent_morph_string = ":" + parent_morph_case
+            except:
+                KeyError
+                parent_morph_string = ""
+
+
         self.attached_lemma = False
         # check each of the deps items
         for dep_item in parent_deps:
@@ -76,6 +79,13 @@ class EvaluateConllu(object):
                 e_deprel = dep_item[1]
                 parts = e_deprel.split(":")
                 label_suffix = parts[-1]
+
+                if attach_morphological_case:
+                    # e_deprel and the morph case
+                    label_suffix = parts[-2:]
+                    label_suffix = ":".join(label_suffix)
+                    modifier_lemma = modifier_lemma + parent_morph_string
+
 
                 if modifier_lemma.lower() == label_suffix:
                     self.modifier_lemmas.update(["case_attached"])
@@ -124,8 +134,3 @@ class clr:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
-    
-
-
-
-
