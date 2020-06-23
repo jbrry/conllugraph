@@ -22,17 +22,16 @@ def argparser():
 
 def main(argv):
     args = argparser().parse_args(argv[1:])
-    
     conllu_graph = ConlluGraph()
     # get annotated sentences
     annotated_sentences = conllu_graph.build_dataset(args.input)
-
     # build individual edges for the sentence
     sentence_edges = conllu_graph.build_edges(annotated_sentences)
-
     # evaluation
     evaluate_conllu = EvaluateConllu()
-    deprel_count, modifier_lemmas = evaluate_conllu.evaluate(sentence_edges, annotated_sentences)
+    deprel_count, modifier_lemmas, morph_case = evaluate_conllu.evaluate(sentence_edges, annotated_sentences)
+    print(modifier_lemmas)
+    print(morph_case)
 
     # perform some checks
     num_case_labels = deprel_count["case"]
