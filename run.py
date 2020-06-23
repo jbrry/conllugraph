@@ -43,7 +43,7 @@ def main(argv):
     s_deprel_count, s_modifier_lemmas, s_morph_case = s_evaluate_conllu.evaluate(s_sentence_edges, s_annotated_sentences, args.attach_morphological_case)
 
     # log statistics
-    print("\n***\GOLD")
+    print("\n***\nGOLD")
     print(args.gold, "\n")
     print(f"number case deprels: {g_deprel_count['case']}")
     for k in g_modifier_lemmas.keys():

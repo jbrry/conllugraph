@@ -90,8 +90,8 @@ class EvaluateConllu(object):
                 if modifier_lemma.lower() == label_suffix:
                     self.modifier_lemmas.update(["case_attached"])
                     self.attached_lemma = True
-                    print(str(sub_graph))
-                    print(f"{clr.PASS}right lemma: {modifier_lemma} ===> {label_suffix} {clr.ENDC}")
+                    #print(str(sub_graph))
+                    #print(f"{clr.PASS}right lemma: {modifier_lemma} ===> {label_suffix} {clr.ENDC}")
 
         if not self.attached_lemma:
             # cases where we shouldn't be attaching a lemma
@@ -107,8 +107,8 @@ class EvaluateConllu(object):
                 self.modifier_lemmas.update(["ignored non-string lemma"])
             else:
                 self.modifier_lemmas.update(["case missed"])
-                print(str(sub_graph))
-                print(f"{clr.FAIL}wrong lemma: {modifier_lemma} ===> {label_suffix}{clr.ENDC}")
+                #print(str(sub_graph))
+                #print(f"{clr.FAIL}wrong lemma: {modifier_lemma} ===> {label_suffix}{clr.ENDC}")
 
         return self.deprel_count, self.modifier_lemmas, self.morph_case 
 

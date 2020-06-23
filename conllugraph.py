@@ -16,7 +16,6 @@ class ConlluGraph:
     def build_edges(self, annotated_sentences):
         """Builds individual edges."""
 
-        print("Building edges from annotated sentences.")
         self.sentence_edges = []
         for annotated_sentence in annotated_sentences:
             # dictionary with conllu ID as key and a tuple of (id, head, rel) as value.
