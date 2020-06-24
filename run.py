@@ -16,6 +16,8 @@ def argparser():
     help='Type of encoding.')
     ap.add_argument('-mc', '--attach_morphological_case', default=False, action='store_true',
     help='Whether to append morphological case to enhanced label.')
+    ap.add_argument('-v', '--visualise', default=False, action='store_true',
+    help='Whether to visualise the dependency labels.')
     ap.add_argument('-ws', '--write-stats', metavar='FILE', default=None,
     help='Write statistics.')
     ap.add_argument('-q', '--quiet', default=False, action='store_true',
@@ -35,25 +37,31 @@ def main(argv):
     s_sentence_edges = conllu_graph.build_edges(s_annotated_sentences)
 
     # evaluation
-    g_evaluate_conllu = EvaluateConllu()
-    g_deprel_count, g_modifier_lemmas, g_morph_case = g_evaluate_conllu.evaluate(g_sentence_edges, g_annotated_sentences, args.attach_morphological_case)
+    g_evaluate_conllu = EvaluateConllu(args.attach_morphological_case, args.visualise)
+    g_deprel_count, g_modifier_lemmas, g_morph_case = g_evaluate_conllu.evaluate(g_sentence_edges, g_annotated_sentences)
     
     # re-initialise
-    s_evaluate_conllu = EvaluateConllu()
-    s_deprel_count, s_modifier_lemmas, s_morph_case = s_evaluate_conllu.evaluate(s_sentence_edges, s_annotated_sentences, args.attach_morphological_case)
+    s_evaluate_conllu = EvaluateConllu(args.attach_morphological_case, args.visualise)
+    s_deprel_count, s_modifier_lemmas, s_morph_case = s_evaluate_conllu.evaluate(s_sentence_edges, s_annotated_sentences)
 
     # log statistics
     print("\n***\nGOLD")
     print(args.gold, "\n")
-    print(f"number case deprels: {g_deprel_count['case']}")
-    for k in g_modifier_lemmas.keys():
-        print(f"{k}: {g_modifier_lemmas[k]}")
+    g_num_case_deprels = g_deprel_count['case']
+    print(f"number case deprels: {g_num_case_deprels}")
+    for gk in g_modifier_lemmas.keys():
+        g_modifier_lemma = g_modifier_lemmas[gk]
+        percentage = g_modifier_lemma / g_num_case_deprels
+        print(f"{gk}: {g_modifier_lemma} ({percentage:.2f})%")
 
     print("\n***\nSYSTEM")
     print(args.silver, "\n")
-    print(f"number case deprels: {s_deprel_count['case']}")
-    for k in s_modifier_lemmas.keys():
-        print(f"{k}: {s_modifier_lemmas[k]}")
+    s_num_case_deprels = s_deprel_count['case']
+    print(f"number case deprels: {s_num_case_deprels}")
+    for sk in s_modifier_lemmas.keys():
+        s_modifier_lemma = s_modifier_lemmas[sk]
+        percentage = s_modifier_lemma / s_num_case_deprels
+        print(f"{sk}: {s_modifier_lemma} ({percentage:.2f})%")
 
     # perform some checks
     num_case_labels = g_deprel_count["case"]

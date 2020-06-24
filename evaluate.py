@@ -8,24 +8,27 @@ logger = logging.getLogger(__name__)
 
 
 class EvaluateConllu(object):
-    def __init__(self):
+    def __init__(self, attach_morphological_case, visualise):
         """ EvaluateConllu. """
         
         self.deprel_count = Counter()
         self.modifier_lemmas = Counter()
         self.morph_case = Counter()
 
+        self.attach_morphological_case = attach_morphological_case
+        self.visualise = visualise
 
-    def evaluate(self, sentence_graphs, annotated_sentences, attach_morphological_case):
+
+    def evaluate(self, sentence_graphs, annotated_sentences):
         """ Perform various types of evaluation. """
 
         for sentence_graph, annotated_sentence in zip(sentence_graphs, annotated_sentences):
-            self.deprel_count, self.modifier_lemmas, self.morph_case = self.evaluate_labels(sentence_graph, annotated_sentence, attach_morphological_case)
+            self.deprel_count, self.modifier_lemmas, self.morph_case = self.evaluate_labels(sentence_graph, annotated_sentence)
 
         return self.deprel_count, self.modifier_lemmas, self.morph_case
 
 
-    def evaluate_labels(self, sentence_graph, annotated_sentence, attach_morphological_case):
+    def evaluate_labels(self, sentence_graph, annotated_sentence):
         """ Evaluates certain dependency labels, e.g. case, mark etc. """
         
         for token_id, edge in sentence_graph.items():
@@ -35,12 +38,12 @@ class EvaluateConllu(object):
             deprel = str(edge[-1])
 
             if deprel == "case":
-                self.deprel_count, self.modifier_lemmas, self.morph_case = self.evaluate_case(token, sentence_graph, annotated_sentence, deprel, attach_morphological_case)
+                self.deprel_count, self.modifier_lemmas, self.morph_case = self.evaluate_case(token, sentence_graph, annotated_sentence, deprel)
 
         return self.deprel_count, self.modifier_lemmas, self.morph_case 
 
 
-    def evaluate_case(self, token, sentence_graph, annotated_sentence, deprel, attach_morphological_case):
+    def evaluate_case(self, token, sentence_graph, annotated_sentence, deprel):
         """ Evaluates case labels to see if the grandchild lemma is 
         attached in the enhanced deprel of its parent. """
 
@@ -57,10 +60,13 @@ class EvaluateConllu(object):
                 # attach fixed children to lemma form
                 modifier_lemma = modifier_lemma + "_" + child.lemma
 
+        # make a copy of the lemma
+        modifier_lemma_copy = modifier_lemma
+
         parent_deps = sub_graph.node2.deps_set
 
         # Check case from morph feats
-        if attach_morphological_case:
+        if self.attach_morphological_case:
             parent_morph_feats = sub_graph.node2.feats_set
             # some tokens won't have this key
             try:
@@ -80,18 +86,19 @@ class EvaluateConllu(object):
                 parts = e_deprel.split(":")
                 label_suffix = parts[-1]
 
-                if attach_morphological_case:
+                if self.attach_morphological_case:
                     # e_deprel and the morph case
                     label_suffix = parts[-2:]
                     label_suffix = ":".join(label_suffix)
-                    modifier_lemma = modifier_lemma + parent_morph_string
-
+                    modifier_lemma = modifier_lemma_copy + parent_morph_string
 
                 if modifier_lemma.lower() == label_suffix:
                     self.modifier_lemmas.update(["case_attached"])
                     self.attached_lemma = True
-                    #print(str(sub_graph))
-                    #print(f"{clr.PASS}right lemma: {modifier_lemma} ===> {label_suffix} {clr.ENDC}")
+
+                    if self.visualise:
+                        print(str(sub_graph))
+                        print(f"{clr.PASS}right lemma: {modifier_lemma} ===> {label_suffix} {clr.ENDC}")
 
         if not self.attached_lemma:
             # cases where we shouldn't be attaching a lemma
@@ -107,8 +114,10 @@ class EvaluateConllu(object):
                 self.modifier_lemmas.update(["ignored non-string lemma"])
             else:
                 self.modifier_lemmas.update(["case missed"])
-                #print(str(sub_graph))
-                #print(f"{clr.FAIL}wrong lemma: {modifier_lemma} ===> {label_suffix}{clr.ENDC}")
+                
+                if self.visualise:
+                    print(str(sub_graph))
+                    print(f"{clr.FAIL}wrong lemma: {modifier_lemma} ===> {label_suffix}{clr.ENDC}")
 
         return self.deprel_count, self.modifier_lemmas, self.morph_case 
 
