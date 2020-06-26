@@ -10,6 +10,11 @@ TBIDS=$(echo $1 | tr '-' ' ')
 
 out_file=$1_log.txt
 
+arr=(bg_btb nl_alpino nl_lassysmall en_ewt fr_sequoia it_isdt pl_lfg sv_talbanken)
+
+# tbids which attach morphological case
+arr_mc=(ar_padt cs_cac cs_fictree cs_pdt et_edt fi_tdt lv_lvtb lt_alksnis  pl_pdb ru_syntagrus sk_snk ta_ttb uk_iu)
+
 if [ -e "$out_file" ]; then
     rm $out_file
 else 
@@ -17,16 +22,19 @@ else
 fi 
 
 for tbid in $TBIDS ; do
-
-  if [ "$tbid" = "ar_padt" ] || [ "$tbid" = "cs_fictree" ] || [ "$tbid" = "cs_pdt" ] || [ "$tbid" = "fi_tdt" ]; then
-    extra_args="--attach_morphological_case"
-  else
+  echo $tbid
+  if [[ " ${arr[*]} " == *" $tbid "* ]]; then
+    echo "not attaching morph case"
     extra_args=""
+  elif [[ " ${arr_mc[*]} " == *" $tbid "* ]]; then
+    echo "attaching morph case"
+    extra_args="--attach_morphological_case"
   fi
 
   echo $'\n'"--------------------" >> ${out_file}
   echo "$tbid" >> ${out_file}
   echo "--------------------"$'\n' >> ${out_file}
+  echo $'\n'"with extra args: ${extra_args}" >> ${out_file}
   
   for filepath in ${DATA_DIR}/UD_*/${tbid}-ud-train.conllu; do
     dir=`dirname ${filepath}`        # e.g. /home/user/ud-treebanks-v2.2/UD_Afrikaans-AfriBooms
