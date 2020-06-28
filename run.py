@@ -1,6 +1,8 @@
 # uses boiler-plate code from: https://github.com/spyysalo/wiki-bert-pipeline/blob/master/scripts/udtokenize.py
 
 import sys
+import csv
+import os.path
 from conllugraph import ConlluGraph
 from evaluate import EvaluateConllu
 
@@ -44,24 +46,43 @@ def main(argv):
     s_evaluate_conllu = EvaluateConllu(args.attach_morphological_case, args.visualise)
     s_deprel_count, s_modifier_lemmas, s_morph_case = s_evaluate_conllu.evaluate(s_sentence_edges, s_annotated_sentences)
 
-    # log statistics
-    print("\n***\nGOLD")
-    print(args.gold, "\n")
-    g_num_case_deprels = g_deprel_count['case']
-    print(f"number case deprels: {g_num_case_deprels}")
-    for gk in g_modifier_lemmas.keys():
-        g_modifier_lemma = g_modifier_lemmas[gk]
-        percentage = g_modifier_lemma / g_num_case_deprels
-        print(f"{gk}: {g_modifier_lemma} ({percentage:.2f})%")
 
-    print("\n***\nSYSTEM")
-    print(args.silver, "\n")
-    s_num_case_deprels = s_deprel_count['case']
-    print(f"number case deprels: {s_num_case_deprels}")
-    for sk in s_modifier_lemmas.keys():
-        s_modifier_lemma = s_modifier_lemmas[sk]
-        percentage = s_modifier_lemma / s_num_case_deprels
-        print(f"{sk}: {s_modifier_lemma} ({percentage:.2f})%")
+
+    def log_output(args, input_type, deprel_counts, modifier_lemmas):
+        """ Log outputs of gold/system results. """
+
+        filename = "case.csv"
+        file_exists = os.path.isfile(filename)
+
+        if input_type == "gold":
+            print("\n***\nGOLD")
+            print(args.gold, "\n")
+            path = args.gold
+        elif input_type == "system":
+            print("\n***\nSYSTEM")
+            print(args.silver, "\n")
+            path = args.silver
+
+        num_case_deprels = deprel_counts['case']
+        print(f"number case deprels: {num_case_deprels}")
+        for k in modifier_lemmas.keys():
+            modifier_lemma = modifier_lemmas[k]
+            percentage = modifier_lemma / num_case_deprels
+            print(f"{k}: {modifier_lemma} ({percentage:.2f})%")
+
+            if k == "case_attached":
+                with open(filename, 'a', newline='') as file:
+                    fieldnames = ['pathname', 'case_attached']
+                    writer = csv.DictWriter(file, fieldnames=fieldnames)
+                    if not file_exists:
+                        writer.writeheader()
+                    writer.writerow({'pathname': path, 'case_attached': percentage})
+                    
+    # log gold statistics
+    log_output(args, "gold", g_deprel_count, g_modifier_lemmas)
+    # log system statistics
+    log_output(args, "system", s_deprel_count, s_modifier_lemmas)
+
 
     # perform some checks
     num_case_labels = g_deprel_count["case"]
