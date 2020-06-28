@@ -12,8 +12,8 @@ def argparser():
     ap = ArgumentParser()
     ap.add_argument('-g', '--gold', type=str,
     help='Gold CoNLL-U file.')
-    ap.add_argument('-s', '--silver', type=str, 
-    help='Silver (system) CoNLL-U file.')
+    ap.add_argument('-s', '--system', type=str, 
+    help='System CoNLL-U file.')
     ap.add_argument('-e', '--encoding', default='utf-8', type=str,
     help='Type of encoding.')
     ap.add_argument('-mc', '--attach_morphological_case', default=False, action='store_true',
@@ -29,10 +29,16 @@ def argparser():
 def main(argv):
     args = argparser().parse_args(argv[1:])
 
+    base_gold = os.path.basename(args.gold)
+    base_system = os.path.basename(args.system)
+    gold_tbid = base_gold.split("-")[0]
+    system_tbid = base_system.split("-")[0]
+    assert gold_tbid == system_tbid, "error: comparing gold and system from different tbids"
+
     conllu_graph = ConlluGraph()
     # get annotated sentences
     g_annotated_sentences = conllu_graph.build_dataset(args.gold)
-    s_annotated_sentences = conllu_graph.build_dataset(args.silver)
+    s_annotated_sentences = conllu_graph.build_dataset(args.system)
 
     # build individual edges
     g_sentence_edges = conllu_graph.build_edges(g_annotated_sentences)
@@ -49,19 +55,14 @@ def main(argv):
 
 
     def log_output(args, input_type, deprel_counts, modifier_lemmas):
-        """ Log outputs of gold/system results. """
-
-        filename = "case.csv"
-        file_exists = os.path.isfile(filename)
+        """ Prints outputs of gold/system results. """
 
         if input_type == "gold":
             print("\n***\nGOLD")
             print(args.gold, "\n")
-            path = args.gold
         elif input_type == "system":
             print("\n***\nSYSTEM")
-            print(args.silver, "\n")
-            path = args.silver
+            print(args.system, "\n")
 
         num_case_deprels = deprel_counts['case']
         print(f"number case deprels: {num_case_deprels}")
@@ -69,19 +70,30 @@ def main(argv):
             modifier_lemma = modifier_lemmas[k]
             percentage = modifier_lemma / num_case_deprels
             print(f"{k}: {modifier_lemma} ({percentage:.2f})%")
-
             if k == "case_attached":
-                with open(filename, 'a', newline='') as file:
-                    fieldnames = ['pathname', 'case_attached']
-                    writer = csv.DictWriter(file, fieldnames=fieldnames)
-                    if not file_exists:
-                        writer.writeheader()
-                    writer.writerow({'pathname': path, 'case_attached': percentage})
-                    
+                    case_success = percentage
+        
+        return case_success
+
+
     # log gold statistics
-    log_output(args, "gold", g_deprel_count, g_modifier_lemmas)
+    case_success_gold = log_output(args, "gold", g_deprel_count, g_modifier_lemmas)
     # log system statistics
-    log_output(args, "system", s_deprel_count, s_modifier_lemmas)
+    case_success_system = log_output(args, "system", s_deprel_count, s_modifier_lemmas)
+
+    header = ["tbid", "case_success_gold", "case_success_system", "diff_success"]
+    row = []
+    diff_success = case_success_gold - case_success_system
+    row.append([gold_tbid, case_success_gold, case_success_system, diff_success])
+    filename = "case.csv"
+    file_exists = os.path.isfile(filename)
+
+    csv_file = open(filename, 'a+', newline ='') 
+    with csv_file:
+        writer = csv.writer(csv_file) 
+        if not file_exists:
+            writer.writerow(header)
+        writer.writerows(row)
 
 
     # perform some checks
@@ -95,7 +107,7 @@ def main(argv):
     # working with un-aligned files is tricky.
     # a workaround may include:
     # for each gold sentence, look for the phenomenom we are interested in (e.g. case dependent)
-    # then iterate through the silver sentence until the corresponding item is found:
+    # then iterate through the system sentence until the corresponding item is found:
     # compare
     # reset at the next sentence
     ##
