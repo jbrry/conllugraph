@@ -23,6 +23,7 @@ fi
 
 for tbid in $TBIDS ; do
   echo $tbid
+  
   if [[ " ${arr[*]} " == *" $tbid "* ]]; then
     echo "not attaching morph case"
     extra_args=""
@@ -50,6 +51,8 @@ for tbid in $TBIDS ; do
     python run.py \
       -g ${GOLD} \
       -s ${SYSTEM} \
+      --evaluate_edges \
+      --evaluate_labels \
       ${extra_args} >> ${out_file}
   done
 done

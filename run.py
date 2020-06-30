@@ -16,6 +16,10 @@ def argparser():
     help='System CoNLL-U file.')
     ap.add_argument('-e', '--encoding', default='utf-8', type=str,
     help='Type of encoding.')
+    ap.add_argument('--evaluate_edges', default=False, action='store_true',
+    help='Evaluate certain dependency labels.')
+    ap.add_argument('--evaluate_labels', default=False, action='store_true',
+    help='Evaluate certain depenency labels.')
     ap.add_argument('-mc', '--attach_morphological_case', default=False, action='store_true',
     help='Whether to append morphological case to enhanced label.')
     ap.add_argument('-v', '--visualise', default=False, action='store_true',
@@ -27,7 +31,7 @@ def argparser():
     return ap
 
 
-def log_output(args, input_type, deprel_counts, modifier_lemmas):
+def log_output(args, input_type, count_dict, modifier_lemmas):
     """ Prints outputs of gold/system results. """
     
     # in some cases, the parser may not have had any success
@@ -40,7 +44,7 @@ def log_output(args, input_type, deprel_counts, modifier_lemmas):
         print("\n***\nSYSTEM")
         print(args.system, "\n")
 
-    num_case_deprels = deprel_counts['case']
+    num_case_deprels = count_dict['case']
     print(f"number case deprels: {num_case_deprels}")
     for k in modifier_lemmas.keys():
         modifier_lemma = modifier_lemmas[k]
@@ -65,28 +69,36 @@ def main(argv):
         base_gold = os.path.basename(args.gold)
         g_annotated_sentences = conllu_graph.build_dataset(args.gold)
         g_sentence_edges = conllu_graph.build_edges(g_annotated_sentences)
-        g_evaluate_conllu = EvaluateConllu(args.attach_morphological_case, args.visualise)
-        g_deprel_count, g_modifier_lemmas, g_morph_case = g_evaluate_conllu.evaluate(g_sentence_edges, g_annotated_sentences)
+        g_evaluate_conllu = EvaluateConllu(args.evaluate_edges, args.evaluate_labels, args.attach_morphological_case, args.visualise)
+        g_edge_count, g_dummy_root_count, g_deprel_count, g_modifier_lemmas, g_morph_case = g_evaluate_conllu.evaluate(g_sentence_edges, g_annotated_sentences)
         case_success_gold = log_output(args, "gold", g_deprel_count, g_modifier_lemmas)
+
+        print(g_edge_count)
+        print(g_dummy_root_count)
 
     if args.system:
         base_system = os.path.basename(args.system)
         s_annotated_sentences = conllu_graph.build_dataset(args.system)
         s_sentence_edges = conllu_graph.build_edges(s_annotated_sentences)
-        s_evaluate_conllu = EvaluateConllu(args.attach_morphological_case, args.visualise)
-        s_deprel_count, s_modifier_lemmas, s_morph_case = s_evaluate_conllu.evaluate(s_sentence_edges, s_annotated_sentences)
+        s_evaluate_conllu = EvaluateConllu(args.evaluate_edges, args.evaluate_labels, args.attach_morphological_case, args.visualise)
+        s_edge_count, s_dummy_root_count, s_deprel_count, s_modifier_lemmas, s_morph_case = s_evaluate_conllu.evaluate(s_sentence_edges, s_annotated_sentences)
         case_success_system = log_output(args, "system", s_deprel_count, s_modifier_lemmas)
+
+        print(s_edge_count)
+        print(s_dummy_root_count)
 
     if args.gold and args.system:
         gold_tbid = base_gold.split("-")[0]
         system_tbid = base_system.split("-")[0]
         assert gold_tbid == system_tbid, "error: comparing gold and system from different tbids"
 
-        header = ["tbid", "case_success_gold", "case_success_system", "diff_success"]
+        s_edge_count = s_edge_count - s_dummy_root_count
+
+        header = ["tbid", "case_success_gold", "case_success_system", "diff_success", "enhanced_deps_gold", "enhanced_deps_system"]
         row = []
         diff_success = case_success_gold - case_success_system
-        row.append([gold_tbid, case_success_gold, case_success_system, diff_success])
-        filename = "case.csv"
+        row.append([gold_tbid, case_success_gold, case_success_system, diff_success, g_edge_count, s_edge_count])
+        filename = "metadata.csv"
         file_exists = os.path.isfile(filename)
 
         csv_file = open(filename, 'a+', newline ='') 

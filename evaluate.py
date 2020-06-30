@@ -8,13 +8,21 @@ logger = logging.getLogger(__name__)
 
 
 class EvaluateConllu(object):
-    def __init__(self, attach_morphological_case, visualise):
+    def __init__(self, evaluate_edges, evaluate_labels, attach_morphological_case, visualise):
         """ EvaluateConllu. """
         
+        # edges
+        self.edge_count = 0
+        self.dummy_root_count = 0
+
+        # deprels
         self.deprel_count = Counter()
         self.modifier_lemmas = Counter()
         self.morph_case = Counter()
 
+        # Boolean flags
+        self.evaluate_edges = evaluate_edges
+        self.evaluate_labels = evaluate_labels
         self.attach_morphological_case = attach_morphological_case
         self.visualise = visualise
 
@@ -23,12 +31,44 @@ class EvaluateConllu(object):
         """ Perform various types of evaluation. """
 
         for sentence_graph, annotated_sentence in zip(sentence_graphs, annotated_sentences):
-            self.deprel_count, self.modifier_lemmas, self.morph_case = self.evaluate_labels(sentence_graph, annotated_sentence)
 
-        return self.deprel_count, self.modifier_lemmas, self.morph_case
+            # evaluate heads/arcs
+            if self.evaluate_edges:
+                self.edge_count, self.dummy_root_count = self.evaluate_heads(sentence_graph, annotated_sentence)
 
 
-    def evaluate_labels(self, sentence_graph, annotated_sentence):
+            # evaluate certain labels
+            if self.evaluate_labels:
+                self.deprel_count, self.modifier_lemmas, self.morph_case = self.evaluate_deprels(sentence_graph, annotated_sentence)
+
+
+
+        return self.edge_count, self.dummy_root_count, self.deprel_count, self.modifier_lemmas, self.morph_case
+
+
+    def evaluate_heads(self, sentence_graph, annotated_sentence):
+        """ """
+        for token_id, edge in sentence_graph.items():
+            token = annotated_sentence[int(token_id)]
+            
+            # skip ROOT
+            if token.head != -1:
+                deps = token.deps_set
+                num_deps = len(deps)
+                # only consider extra dummy root edges (assumes the parser only chose one edge when choosing the real root)
+                if num_deps > 1:
+                    for dep in deps:
+                        if dep == ('0', 'root'):
+                            self.dummy_root_count += 1
+
+                self.edge_count += num_deps
+        
+        return self.edge_count, self.dummy_root_count
+
+
+
+
+    def evaluate_deprels(self, sentence_graph, annotated_sentence):
         """ Evaluates certain dependency labels, e.g. case, mark etc. """
         
         for token_id, edge in sentence_graph.items():
