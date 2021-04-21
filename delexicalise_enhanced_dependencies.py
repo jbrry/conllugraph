@@ -5,6 +5,11 @@ from collections import Counter
 from conllugraph import ConlluGraph
 
 
+LONG_BASIC_LABELS = ["nmod:poss", "nsubj:pass", "nsubj:xsubj", "acl:relcl", "aux:pass", "compound:prt", "obl:npmod", "det:predet", "nmod:npmod",
+"cc:preconj"] # Add any more or get this from a Vocab file
+
+LABELS_TO_EXCLUDE = ["root", "poss", "parataxis", "ref"]
+
 class DelexicaliseConllu(object):
     def __init__(self,
                 attach_morphological_case,
@@ -23,23 +28,26 @@ class DelexicaliseConllu(object):
         # Counters
         self.deprel_count = Counter()
         self.lexical_item_count = Counter()
+        self.lexicalised_deprels_count = Counter()
 
     def delexicalise(self, sentence_graphs, annotated_sentences):
         """Perform various types of delexicalisation."""
 
         for sentence_graph, annotated_sentence in zip(sentence_graphs, annotated_sentences):
-            print()
-            for rt in annotated_sentence:
-                print(rt)
+            
+            #print()
+            #for rt in annotated_sentence:
+            #    print(rt)
 
             # Delexicalise enhanced relations which involve 'case' and 'mark' dependents.
-            delexicalised_case_and_mark, deprel_count, lexical_item_count = self.delexicalise_case_and_mark(sentence_graph, annotated_sentence)
+            delexicalised_case_and_mark, deprel_count, lexical_item_count, \
+                lexicalised_deprels_count = self.delexicalise_case_and_mark(sentence_graph, annotated_sentence)
             
-            print()
-            for t in delexicalised_case_and_mark:
-                print(t)
+            #print()
+            #for t in delexicalised_case_and_mark:
+            #    print(t)
         
-        return delexicalised_case_and_mark, deprel_count, lexical_item_count
+        return delexicalised_case_and_mark, deprel_count, lexical_item_count, lexicalised_deprels_count
 
 
     def delexicalise_case_and_mark(self, sentence_graph, annotated_sentence):
@@ -51,9 +59,10 @@ class DelexicaliseConllu(object):
         will be reconstructed in a post-processing step.
         """
 
-        LONG_BASIC_LABELS = ["nmod:poss", "nsubj:pass", "nsubj:xsubj", "acl:relcl"] # Add any more or get this from a Vocab file
+        delexicalised_sentence = []
 
-        altered_sentence = []
+        # if "nsubj:pass" in LONG_BASIC_LABELS:
+        #     raise ValueError
 
         for token_id, edge in sentence_graph.items():
             # Operate on each token
@@ -62,11 +71,13 @@ class DelexicaliseConllu(object):
             edeps = token.deps.split("|")
             for i, edep in enumerate(edeps):
                 enhanced_label = edep.split(":")[1:]
+                enhanced_label_string = ":".join(enhanced_label)
 
                 # Likely a lexicalised head
                 if len(enhanced_label) >= 2:
-                    
-                    if enhanced_label not in LONG_BASIC_LABELS:
+                    if enhanced_label_string not in LONG_BASIC_LABELS:
+                        self.lexicalised_deprels_count.update([f"{enhanced_label_string}"])
+
                         # Look at the token's children and see if they modifiers which involve attaching a lemma.
                         for token_child in token.children:
                             token_child_edeps = token_child.deps.split("|")
@@ -78,7 +89,6 @@ class DelexicaliseConllu(object):
                                     lexical_item = edep.split(":")[-1]
                                     edep = edep.replace(lexical_item, "<case_delex>")
                                     edeps[i] = edep
-
                                     # update counters
                                     self.deprel_count.update(["case delexicalised"])
                                     self.lexical_item_count.update([lexical_item])
@@ -88,17 +98,16 @@ class DelexicaliseConllu(object):
                                     lexical_item = edep.split(":")[-1]
                                     edep = edep.replace(lexical_item, "<mark_delex>")
                                     edeps[i] = edep
-
                                     # update counters
                                     self.deprel_count.update(["mark delexicalised"])
                                     self.lexical_item_count.update([lexical_item])
 
+
             # update token deps
             token.deps= "|".join(edeps)
+            delexicalised_sentence.append(token)
 
-            altered_sentence.append(token)
-
-        return altered_sentence, self.deprel_count, self.lexical_item_count
+        return delexicalised_sentence, self.deprel_count, self.lexical_item_count, self.lexicalised_deprels_count
                                 
     # def delexicalise_conj():
     #     # 3) Token "conj" label, so delexicalise its "cc" dependents
@@ -165,9 +174,11 @@ def main(argv):
         #print(input_annotated_sentences)
         input_sentence_edges = conllu_graph.build_edges(input_annotated_sentences)
         delexicalise_conllu = DelexicaliseConllu(args.attach_morphological_case, args.visualise)
-        output_annotated_sentences, deprel_count, lexical_item_count = delexicalise_conllu.delexicalise(input_sentence_edges, input_annotated_sentences)
+        output_annotated_sentences, deprel_count, lexical_item_count, lexicalised_deprels_count = delexicalise_conllu.delexicalise(input_sentence_edges, input_annotated_sentences)
+        
         print(deprel_count)
         print(lexical_item_count)
+        print(lexicalised_deprels_count)
     
     return 0
 
