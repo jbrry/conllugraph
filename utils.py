@@ -36,11 +36,14 @@ def read_conll(filename):
         """
         # skip ROOT
         for word in words[1:]:
-            parent = words[int(word.head)]
-            # don't append children for notional ROOT
-            if int(parent.id) != 0:
-                parent.children.append(word)
-
+            try:
+                parent = words[int(word.head)]
+                # don't append children for notional ROOT
+                if parent.id != "0":
+                    parent.children.append(word)
+            except ValueError:
+                # Elided token
+                continue
 
     file = open(filename, "r")
 
@@ -83,11 +86,6 @@ def read_conll(filename):
         # Read next token/word
         columns = line.split("\t")
 
-        # Skip empty nodes
-        # TODO: will need to keep track of elided tokens in the future
-        if "." in columns[ID]:
-            continue
-
         # Handle multi-word tokens to save word(s)
         if "-" in columns[ID]:
             start, end = map(int, columns[ID].split("-"))
@@ -109,7 +107,7 @@ def read_conll(filename):
                 head = int(columns[HEAD])
             else:
                 head = -1
-            edges.append((head, int(columns[ID]), columns[DEPREL].split(":")[0]))
+            edges.append((head, columns[ID], columns[DEPREL].split(":")[0]))
 
     file.close()
 
