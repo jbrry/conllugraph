@@ -59,20 +59,27 @@ class DelexicaliseConllu(object):
         self.lexicalised_deprels_count = Counter()
 
 
-    def delexicalise(self, sentence_graphs, annotated_sentences):
+    def delexicalise(self, annotated_sentences):
         """Perform various types of delexicalisation."""
 
         output_delexicalised_sentences = []
 
-        for sentence_graph, annotated_sentence in zip(sentence_graphs, annotated_sentences):
+        for annotated_sentence in annotated_sentences:
             # Delexicalise enhanced relations which involve 'case' and 'mark' dependents.
             delexicalised_case_mark_cc, deprel_count, lexical_item_count, \
-                lexicalised_deprels_count = self.delexicalise_case_mark_cc(sentence_graph, annotated_sentence)
+                lexicalised_deprels_count = self.delexicalise_case_mark_cc(annotated_sentence)
+
+            # We have delexicalised the labels where tokens have certain modifiers,
+            # but we still need to make sure these are applied to conjs which do not have direct
+            # modifiers, so they have to get their delexicalised label from the first conjunct.
+            delexicalised_conjs = self.delexicalise_conj(delexicalised_case_mark_cc)
+
+            
             output_delexicalised_sentences.append(delexicalised_case_mark_cc)
         
         return output_delexicalised_sentences, deprel_count, lexical_item_count, lexicalised_deprels_count
 
-    def delexicalise_case_mark_cc(self, sentence_graph, annotated_sentence):
+    def delexicalise_case_mark_cc(self, annotated_sentence):
         """
         This delexicalisation procedure involves, for each word,
         checking its dependency label; if it contains lexical information,
@@ -82,11 +89,10 @@ class DelexicaliseConllu(object):
         """
 
         delexicalised_sentence = []
+        
+        # Operate on each token apart from ROOT
+        for token in annotated_sentence[1:]:
 
-        for token_id, edge in sentence_graph.items():
-            # Operate on each token
-            token = annotated_sentence[int(token_id)]
-            
             edeps = token.deps.split("|")
             for i, edep in enumerate(edeps):
                 enhanced_label = edep.split(":")[1:]
@@ -136,50 +142,61 @@ class DelexicaliseConllu(object):
 
         return delexicalised_sentence, self.deprel_count, self.lexical_item_count, self.lexicalised_deprels_count
                                 
-    def delexicalise_conj():
+    def delexicalise_conj(self, annotated_sentence):
         """
-        This delexicalisation procedure involves, for each word,
-        checking its dependency label; if it contains lexical information,
-        search for its dependents, if the token has a 'case' or 'mark' dependent,
-        the enhanced label will be set to a placeholder label which
-        will be reconstructed in a post-processing step.
-
         See "# text = Itinerary Both ships go to Caribbean Islands like Jamaica, Grand Cayman, Cozumel, St. Thomas, the Bahamas and St. Martin / St. Maarten."
         -> all tokens in a chain of conjs take the same label, and also attach the same cc label.
         """
-        # 3) Token "conj" label, so delexicalise its "cc" dependents
+
         # 3b) The word the token is in conjunction with, it usually takes its edep label too (5:advcl:on|9:conj:and)
             # 10      to      to      PART    TO      _       11      mark    11:mark _
             # 11      go      go      VERB    VB      VerbForm=Inf    6       advcl   6:advcl:to      _
             # 12      ahead   ahead   ADV     RB      _       11      advmod  11:advmod       _
             # 13      and     and     CCONJ   CC      _       14      cc      14:cc   _
-            # 14      replace replace VERB    VB      VerbForm=Inf    11      conj    6:advcl:to|11:conj:and  _
+            # 14      replace replace VERB    VB      VerbForm=Inf    11      conj    6:advcl:to|11:conj:and  _ X
 
-        base_relation = enhanced_label[0]
-        if base_relation == "conj":
-            print("\n")
-            print(annotated_sentence)
-            print(edeps)
-            first_conjunct = edep.split(":")[0]
-            print(first_conjunct)
-            first_conjunct_token = annotated_sentence[int(first_conjunct)]
-            first_conjunct_token_eheads = first_conjunct_token.deps
+        for token in annotated_sentence[1:]:
 
-            lexical_item = edep.split(":")[-1]
-            print(first_conjunct_token_eheads)
+            edeps = token.deps.split("|")
+            for i, edep in enumerate(edeps):
+                enhanced_label = edep.split(":")[1:]
+                enhanced_label_string = ":".join(enhanced_label)
+
+                # Check if the token is a "conj" and inspect other tokens it is in conjunction with.
+                base_relation = enhanced_label[0]
+                if base_relation == "conj":
+                    print()
+                    print("heads", token.deps)
+                    print("children", token.children)
+
+                    first_conjunct_index = edep.split(":")[0]
+
+                    # 9 
+                    print(first_conjunct_index)
+                    # Normally we'd -1 here as we are going from CoNLLU indexing to list-indexing
+                    # but having ROOT at the start of the list means it is already offset by 1.
+                    try:
+                        first_conjunct_token = annotated_sentence[int(first_conjunct_index)]
+                    except ValueError:
+                        # For elided tokens, e.g. 5.1, we can scan through the ID column and look for the
+                        # index which corresponds to the first_conjunct
+                        for token_index, token in enumerate(annotated_sentence):
+                            if token.id == first_conjunct_index:
+                                first_conjunct_token = annotated_sentence[int(token_index)]
+
+                    first_conjunct_token_edeps = first_conjunct_token.deps.split("|")
+                    print(first_conjunct_token_edeps)
+                    for i, edep in enumerate(edeps):
+                        enhanced_label = edep.split(":")[1:]
+                        enhanced_label_string = ":".join(enhanced_label)
             
-            # What is the word it is pointing to's head?
-            # e.g. copy the conjunct's head
-            # go to token 11, take its label....
-            for token_child in token.children:
-                token_child_edeps = token_child.deps.split("|")
-                for token_child_edep in token_child_edeps:
-                    token_child_edep_label = token_child_edep.split(":")[1:].pop()
-
-                    if token_child_edep_label == "cc":
-                        lexical_item = edep.split(":")[-1]
-                        edep = edep.replace(lexical_item, "<cc_delex>")
-                        print("cc dep", lexical_item, edeps, edep) # cc   <mark_delex> ['15:advcl:as', '19:conj:and'] 19:conj:<cc_delex> ???
+                        # # What is the word it is pointing to's head?
+                        # # e.g. copy the conjunct's head
+                        # # go to token 11, take its label....
+                        # for token_child in token.children:
+                        #     token_child_edeps = token_child.deps.split("|")
+                        #     for token_child_edep in token_child_edeps:
+                        #         token_child_edep_label = token_child_edep.split(":")[1:].pop()
 
 
 def argparser():
@@ -210,7 +227,7 @@ def main(argv):
         input_sentence_edges = conllu_graph.build_edges(input_annotated_sentences)
 
         delexicalise_conllu = DelexicaliseConllu(args.attach_morphological_case, args.visualise)
-        output_delexicalised_sentences, deprel_count, lexical_item_count, lexicalised_deprels_count = delexicalise_conllu.delexicalise(input_sentence_edges, input_annotated_sentences)
+        output_delexicalised_sentences, deprel_count, lexical_item_count, lexicalised_deprels_count = delexicalise_conllu.delexicalise(input_annotated_sentences)
 
         conllu_out = write_output_file(args.input, output_delexicalised_sentences)
 
