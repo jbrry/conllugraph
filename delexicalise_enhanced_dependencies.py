@@ -166,14 +166,15 @@ class DelexicaliseConllu(object):
 
         seen_first_conj = False
         for token in annotated_sentence:
-            edeps = token.deps.split("|")
+            edeps = token.deps_set
             for i, edep in enumerate(edeps):
-                enhanced_label = edep.split(":")[1:]
+                enhanced_head = edep[0]
+                enhanced_label = edep[1]
                 
                 # Check if the token is a "conj" and inspect other tokens it is in conjunction with.
-                base_relation = enhanced_label[0]
+                base_relation = enhanced_label.split(":")[0]
                 if base_relation == "conj":
-                    first_conjunct_index = edep.split(":")[0]
+                    first_conjunct_index = enhanced_head
                     
                     if not seen_first_conj:
                         #print("Propagating from first conjunct to all others.")
@@ -189,17 +190,23 @@ class DelexicaliseConllu(object):
                         fct_children = first_conjunct_token.children
                         #print("Children of the first conjunct: ", fct_children)
 
-                        fct_edeps = first_conjunct_token.deps.split("|")
-                        # let's see if there are ever more than 1
-                        # if len(fct_edeps) > 1:
-                        #     raise ValueError(f"{token} \n {fct_edeps}")
-
+                        fct_edeps = first_conjunct_token.deps_set
                         for i, edep in enumerate(fct_edeps):
                             #print(f"These are the labels to propagate {edep}")
                             # 7:nmod:<case_delex> -> 7:nmod
-                            fct_short = ":".join(edep.split(":")[:-1])
-                            fct_long = edep
+                            
+                            tmp = []
+                            tmp.append(enhanced_head)
+                            tmp.append(enhanced_label.split(":")[:-1].pop())
+                            fct_short = ":".join(tmp)
+                            
+                            print(fct_short)
+                            #fct_long = ":".join(edep)
 
+                            tmp_long = []
+                            tmp_long.append(enhanced_head)
+                            fct_long = enhanced_label
+                            print(fct_long)
                             # 1) Pass first conjunct's head to all children with matching shorthand label
                             for fct_child in fct_children:
                                 #print(f"Working on {fct_child}")
@@ -210,6 +217,7 @@ class DelexicaliseConllu(object):
                                     if fct_short == edep_short: # TODO: Can the a word have two heads with same label?
                                         #print(f"Found matching labels {fct_short} --> {edep_short}. Changing to {fct_long}")
                                         # replace edep item with the label of the first conjunct.
+                                        raise ValueError
                                         edep = fct_long
                                         fct_child_edeps[i] = edep
 
