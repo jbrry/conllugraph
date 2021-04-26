@@ -9,6 +9,11 @@ LONG_BASIC_LABELS = ["nmod:poss", "nsubj:pass", "nsubj:xsubj", "acl:relcl", "aux
 
 LABELS_TO_EXCLUDE = ["root", "poss", "parataxis", "ref"]
 
+"""
+Bugged sentences:
+Because the US and Pakistan have managed to capture or kill about 2/3s of the top 25 al-Qaeda commanders, the middle managers are not in close contact with al-Zawahiri and Bin Laden.
+"""
+
 
 def write_output_file(input_path, delexicalised_sentences):
     """
@@ -87,6 +92,8 @@ class DelexicaliseConllu(object):
         search for its dependents, if the token has a 'case', 'mark' or 'cc' dependent,
         the enhanced label will be set to a placeholder label which
         will be reconstructed in a post-processing step.
+
+        TODO: don't take ccomp deps
         """
 
         delexicalised_sentence = []
@@ -94,51 +101,52 @@ class DelexicaliseConllu(object):
         # Operate on each token apart from ROOT
         for token in annotated_sentence[1:]:
 
-            edeps = token.deps.split("|")
+            edeps = token.deps_set
+
             for i, edep in enumerate(edeps):
-                enhanced_label = edep.split(":")[1:]
-                enhanced_label_string = ":".join(enhanced_label)
+                enhanced_head = edep[0]
+                enhanced_label = edep[1]
 
                 # Likely a lexicalised head
-                if len(enhanced_label) >= 2:
-                    if enhanced_label_string not in LONG_BASIC_LABELS:
-                        self.lexicalised_deprels_count.update([f"{enhanced_label_string}"])
+                if len(enhanced_label.split(":")) >= 2:
+                    if enhanced_label not in LONG_BASIC_LABELS:
+                        self.lexicalised_deprels_count.update([f"{enhanced_label}"])
 
                         # Look at the token's children and see if they have modifiers which involve attaching a lemma.
                         for token_child in token.children:
-                            token_child_edeps = token_child.deps.split("|")
+                            token_child_edeps = token_child.deps_set
                             for token_child_edep in token_child_edeps:
-                                token_child_enhanced_label = token_child_edep.split(":")[1:].pop()
+                                token_child_enhanced_label = token_child_edep[1]
 
                                 # 1) Token has a "case" dependent
                                 if token_child_enhanced_label == "case":
-                                    lexical_item = edep.split(":")[-1]
-                                    edep = edep.replace(lexical_item, "<case_delex>")
-                                    edeps[i] = edep
+                                    lexical_item = enhanced_label.split(":")[-1]
+                                    delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<case_delex>"))
+                                    edeps[i] = delexicalised_edep
                                     # update counters
                                     self.deprel_count.update(["case delexicalised"])
                                     self.lexical_item_count.update([lexical_item])
 
                                 # 2) Token has a "mark" dependent
                                 elif token_child_enhanced_label == "mark":
-                                    lexical_item = edep.split(":")[-1]
-                                    edep = edep.replace(lexical_item, "<mark_delex>")
-                                    edeps[i] = edep
+                                    lexical_item = enhanced_label.split(":")[-1]
+                                    delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<mark_delex>"))
+                                    edeps[i] = delexicalised_edep
                                     # update counters
                                     self.deprel_count.update(["mark delexicalised"])
                                     self.lexical_item_count.update([lexical_item])
 
                                 # 3) Token has a "cc" dependent
                                 elif token_child_enhanced_label == "cc":
-                                    lexical_item = edep.split(":")[-1]
-                                    edep = edep.replace(lexical_item, "<cc_delex>")
-                                    edeps[i] = edep
+                                    lexical_item = enhanced_label.split(":")[-1]
+                                    delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<cc_delex>"))
+                                    edeps[i] = delexicalised_edep
                                     # update counters
                                     self.deprel_count.update(["cc delexicalised"])
                                     self.lexical_item_count.update([lexical_item])
 
             # update token deps
-            token.deps= "|".join(edeps)
+            token.deps_set = edeps
             delexicalised_sentence.append(token)
 
         return delexicalised_sentence, self.deprel_count, self.lexical_item_count, self.lexicalised_deprels_count
@@ -183,8 +191,8 @@ class DelexicaliseConllu(object):
 
                         fct_edeps = first_conjunct_token.deps.split("|")
                         # let's see if there are ever more than 1
-                        if len(fct_edeps) > 1:
-                            raise ValueError
+                        # if len(fct_edeps) > 1:
+                        #     raise ValueError(f"{token} \n {fct_edeps}")
 
                         for i, edep in enumerate(fct_edeps):
                             #print(f"These are the labels to propagate {edep}")
@@ -213,6 +221,9 @@ class DelexicaliseConllu(object):
                         # Just do this process once.
                         seen_first_conj = True
             delexicalised_sentence.append(token)
+
+        for t in delexicalised_sentence:
+            print(t)
 
         return delexicalised_sentence
 
@@ -269,26 +280,28 @@ class DelexicaliseConllu(object):
                                             if "<cc_delex>" in edep:
                                                 # TODO: should we take everything but the head (even though the head is usually always the same)
                                                 cc_to_propagate = edep
+                                                seen_cc_modifier = True
 
-                        # 2) Pass delexicalised label from last conjunct upwards 
-                        for fct_child in fct_children:
-                            #print(f"Working on {fct_child}")
-                            fct_child_edeps = fct_child.deps.split("|")
-                            for i, edep in enumerate(fct_child_edeps):
-                                # skip head and lexical label
-                                edep_short = ":".join(edep.split(":")[1:-1])
-                                print(edep_short)
-                                # if the shortened edep has the same label as the first conjunct, take its delexicalised label.
-                                if edep_short == "conj":
-                                    #print(f"Found matching labels {fct_short} --> {edep_short}. Changing to {fct_long}")
-                                    # replace edep item with the label of the first conjunct.
-                                    edep = cc_to_propagate
-                                    fct_child_edeps[i] = edep
+                        # 2) Pass delexicalised label from last conjunct upwards
+                        if seen_cc_modifier:
+                            for fct_child in fct_children:
+                                #print(f"Working on {fct_child}")
+                                fct_child_edeps = fct_child.deps.split("|")
+                                for i, edep in enumerate(fct_child_edeps):
+                                    # skip head and lexical label
+                                    edep_short = ":".join(edep.split(":")[1:-1])
+                                    print(edep_short)
+                                    # if the shortened edep has the same label as the first conjunct, take its delexicalised label.
+                                    if edep_short == "conj":
+                                        #print(f"Found matching labels {fct_short} --> {edep_short}. Changing to {fct_long}")
+                                        # replace edep item with the label of the first conjunct.
+                                        edep = cc_to_propagate
+                                        fct_child_edeps[i] = edep
 
-                            # update child token deps
-                            fct_child.deps= "|".join(fct_child_edeps)
-                            # update counters
-                            self.deprel_count.update(["last delexicalised conjunct propagated"])
+                                # update child token deps
+                                fct_child.deps= "|".join(fct_child_edeps)
+                                # update counters
+                                self.deprel_count.update(["last delexicalised conjunct propagated"])
 
             delexicalised_sentence.append(token)
 
