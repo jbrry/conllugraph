@@ -33,7 +33,7 @@ def write_output_file(input_path, delexicalised_sentences):
     outfile = os.path.join(output_path, basename)
     with open(outfile, 'w', encoding='utf-8') as fo:
         for sent in delexicalised_sentences:
-            for conllu_token in sent[1:]: # skip ROOT
+            for conllu_token in sent:
                 fo.write(str(conllu_token) + "\n")
             fo.write("\n")
 
@@ -74,8 +74,7 @@ class DelexicaliseConllu(object):
             # modifiers, so they have to get their delexicalised label from the first conjunct.
             delexicalised_conjs = self.delexicalise_conj(delexicalised_case_mark_cc)
 
-            
-            output_delexicalised_sentences.append(delexicalised_case_mark_cc)
+            output_delexicalised_sentences.append(delexicalised_conjs)
         
         return output_delexicalised_sentences, deprel_count, lexical_item_count, lexicalised_deprels_count
 
@@ -144,59 +143,79 @@ class DelexicaliseConllu(object):
                                 
     def delexicalise_conj(self, annotated_sentence):
         """
-        See "# text = Itinerary Both ships go to Caribbean Islands like Jamaica, Grand Cayman, Cozumel, St. Thomas, the Bahamas and St. Martin / St. Maarten."
+        See: "# text = Itinerary Both ships go to Caribbean Islands like Jamaica, Grand Cayman, Cozumel, St. Thomas, the Bahamas and St. Martin / St. Maarten."
         -> all tokens in a chain of conjs take the same label, and also attach the same cc label.
+
+        Looks for tokens which are in conjunction with each other.
+        We first look for the head of the conjoined phrase and append its (delexicalised) label to
+        all of its conjuncts.
+        Then, for the last conjunct there is usually a 'cc' modifer, e.g. apples, bananas *and* oranges.
+        This 'and' needs to be passed to the labels of the words which precede the last conjunct in the sequence.
+        We need to ensure consistency between the labels we are propagating.
         """
 
-        # 3b) The word the token is in conjunction with, it usually takes its edep label too (5:advcl:on|9:conj:and)
-            # 10      to      to      PART    TO      _       11      mark    11:mark _
-            # 11      go      go      VERB    VB      VerbForm=Inf    6       advcl   6:advcl:to      _
-            # 12      ahead   ahead   ADV     RB      _       11      advmod  11:advmod       _
-            # 13      and     and     CCONJ   CC      _       14      cc      14:cc   _
-            # 14      replace replace VERB    VB      VerbForm=Inf    11      conj    6:advcl:to|11:conj:and  _ X
+        delexicalised_sentence = []
 
-        for token in annotated_sentence[1:]:
-
+        seen_first_conj = False
+        for token in annotated_sentence:
             edeps = token.deps.split("|")
             for i, edep in enumerate(edeps):
                 enhanced_label = edep.split(":")[1:]
-                enhanced_label_string = ":".join(enhanced_label)
-
+                
                 # Check if the token is a "conj" and inspect other tokens it is in conjunction with.
                 base_relation = enhanced_label[0]
                 if base_relation == "conj":
-                    print()
-                    print("heads", token.deps)
-                    print("children", token.children)
-
                     first_conjunct_index = edep.split(":")[0]
+                    
+                    if not seen_first_conj:
+                        print("Propagating from first conjunct to all others.")
+                        try:
+                            first_conjunct_token = annotated_sentence[int(first_conjunct_index) -1]
+                        except ValueError:
+                            # For elided tokens, e.g. 5.1, we can scan through the ID column and look for the
+                            # index which corresponds to the first_conjunct.
+                            for token_index, token in enumerate(annotated_sentence):
+                                if token.id == first_conjunct_index:
+                                    first_conjunct_token = annotated_sentence[int(token_index)]
 
-                    # 9 
-                    print(first_conjunct_index)
-                    # Normally we'd -1 here as we are going from CoNLLU indexing to list-indexing
-                    # but having ROOT at the start of the list means it is already offset by 1.
-                    try:
-                        first_conjunct_token = annotated_sentence[int(first_conjunct_index)]
-                    except ValueError:
-                        # For elided tokens, e.g. 5.1, we can scan through the ID column and look for the
-                        # index which corresponds to the first_conjunct
-                        for token_index, token in enumerate(annotated_sentence):
-                            if token.id == first_conjunct_index:
-                                first_conjunct_token = annotated_sentence[int(token_index)]
+                        fct_children = first_conjunct_token.children
+                        print("Children of the first conjunct: ", fct_children)
 
-                    first_conjunct_token_edeps = first_conjunct_token.deps.split("|")
-                    print(first_conjunct_token_edeps)
-                    for i, edep in enumerate(edeps):
-                        enhanced_label = edep.split(":")[1:]
-                        enhanced_label_string = ":".join(enhanced_label)
-            
-                        # # What is the word it is pointing to's head?
-                        # # e.g. copy the conjunct's head
-                        # # go to token 11, take its label....
-                        # for token_child in token.children:
-                        #     token_child_edeps = token_child.deps.split("|")
-                        #     for token_child_edep in token_child_edeps:
-                        #         token_child_edep_label = token_child_edep.split(":")[1:].pop()
+                        fct_edeps = first_conjunct_token.deps.split("|")
+                        # let's see if there are ever more than 1
+                        if len(fct_edeps) > 1:
+                            raise ValueError
+
+                        for i, edep in enumerate(fct_edeps):
+                            print(f"These are the labels to propagate {edep}")
+                            # 7:nmod:<case_delex> -> 7:nmod
+                            fct_short = ":".join(edep.split(":")[:-1])
+                            fct_long = edep
+
+                            # 1) Pass first conjunct's head to all children with matching shorthand label
+                            for fct_child in fct_children:
+                                print(f"Working on {fct_child}")
+                                fct_child_edeps = fct_child.deps.split("|")
+                                for i, edep in enumerate(fct_child_edeps):
+                                    edep_short = ":".join(edep.split(":")[:-1])
+                                    # if the shortened edep has the same label as the first conjunct, take its delexicalised label.
+                                    if fct_short == edep_short: # TODO: Can the a word have two heads with same label?
+                                        print(f"Found matching labels {fct_short} --> {edep_short}. Changing to {fct_long}")
+                                        # replace edep item with the label of the first conjunct.
+                                        edep = fct_long
+                                        fct_child_edeps[i] = edep
+
+                                # update child token deps
+                                fct_child.deps= "|".join(fct_child_edeps)
+                                # update counters
+                                self.deprel_count.update(["first delexicalised conjunct propagated"])
+
+                        # Just do this process once.
+                        seen_first_conj = True
+            delexicalised_sentence.append(token)
+
+        return delexicalised_sentence
+
 
 
 def argparser():
@@ -221,6 +240,7 @@ def main(argv):
 
     conllu_graph = ConlluGraph()
 
+
     if args.input:
         base_input = os.path.basename(args.input)
         input_annotated_sentences = conllu_graph.build_dataset(args.input)
@@ -229,7 +249,7 @@ def main(argv):
         delexicalise_conllu = DelexicaliseConllu(args.attach_morphological_case, args.visualise)
         output_delexicalised_sentences, deprel_count, lexical_item_count, lexicalised_deprels_count = delexicalise_conllu.delexicalise(input_annotated_sentences)
 
-        conllu_out = write_output_file(args.input, output_delexicalised_sentences)
+        write_output_file(args.input, output_delexicalised_sentences)
 
         # print(deprel_count)
         # print(lexical_item_count)
