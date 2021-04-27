@@ -16,7 +16,6 @@ Sample sentences:
 
 """
 
-
 def write_output_file(input_path, delexicalised_sentences):
     """
     Takes an input path and the delexicalsed sentences and writes them to an output
@@ -72,28 +71,26 @@ class DelexicaliseConllu(object):
         output_delexicalised_sentences = []
 
         for annotated_sentence in annotated_sentences:
-            
-
-
+        
             # Delexicalise enhanced relations which involve 'case' and 'mark' dependents.
-            delexicalised_case_mark_cc, deprel_count, lexical_item_count, \
+            delexicalised_sentence, deprel_count, lexical_item_count, \
                 lexicalised_deprels_count = self.delexicalise_case_mark_cc(annotated_sentence)
 
             # We have delexicalised the labels where tokens have certain modifiers,
             # but we still need to make sure these are applied to conjs which do not have direct
             # modifiers, so they have to get their delexicalised label from the first conjunct.
-            delexicalised_conjs = self.propagate_first_conj_labels(delexicalised_case_mark_cc)
+            delexicalised_sentence = self.propagate_first_conj_labels(delexicalised_sentence)
             # Now propagate 'cc' modifier to all conjuncts
-            delexicalised_conjs = self.propagate_cc_modifier_in_conjs(delexicalised_conjs)
+            delexicalised_sentence = self.propagate_cc_modifier_in_conjs(delexicalised_sentence)
 
-            output_delexicalised_sentences.append(delexicalised_conjs)
+            output_delexicalised_sentences.append(delexicalised_sentence)
 
         return output_delexicalised_sentences, deprel_count, lexical_item_count, lexicalised_deprels_count
 
     def delexicalise_case_mark_cc(self, annotated_sentence):
         """
-        This delexicalisation procedure involves, for each word,
-        checking its dependency label; if it contains lexical information,
+        This delexicalisation procedure involves:
+        For each word, checking its dependency label; if it contains lexical information,
         search for its dependents, if the token has a 'case', 'mark' or 'cc' dependent,
         the enhanced label will be set to a placeholder label which
         will be reconstructed in a post-processing step.
@@ -105,9 +102,7 @@ class DelexicaliseConllu(object):
         
         # Operate on each token apart from ROOT
         for token in annotated_sentence[1:]:
-
             edeps = token.deps_set
-
             for i, edep in enumerate(edeps):
                 enhanced_head = edep[0]
                 enhanced_label = edep[1]
@@ -141,15 +136,15 @@ class DelexicaliseConllu(object):
                                     self.deprel_count.update(["mark delexicalised"])
                                     self.lexical_item_count.update([lexical_item])
 
-                                # 3) Token has a "cc" dependent
-                                # TODO: should 'cc's only affect conj labels?
+                                # 3) Token has a "cc" dependent but only append the lemma if the edep is "conj"
                                 elif token_child_enhanced_label == "cc":
                                     lexical_item = enhanced_label.split(":")[-1]
-                                    delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<cc_delex>"))
-                                    edeps[i] = delexicalised_edep
-                                    # update counters
-                                    self.deprel_count.update(["cc delexicalised"])
-                                    self.lexical_item_count.update([lexical_item])
+                                    if enhanced_label.split(":")[0] == "conj":
+                                        delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<cc_delex>"))
+                                        edeps[i] = delexicalised_edep
+                                        # update counters
+                                        self.deprel_count.update(["cc delexicalised"])
+                                        self.lexical_item_count.update([lexical_item])
 
             # update token deps
             token.deps_set = edeps
@@ -158,21 +153,14 @@ class DelexicaliseConllu(object):
         return delexicalised_sentence, self.deprel_count, self.lexical_item_count, self.lexicalised_deprels_count
 
 
-
     def propagate_first_conj_labels(self, annotated_sentence):
         """
-        See: "# text = Itinerary Both ships go to Caribbean Islands like Jamaica, Grand Cayman, Cozumel, St. Thomas, the Bahamas and St. Martin / St. Maarten."
-        -> all tokens in a chain of conjs take the same label, and also attach the same cc label.
-
-        Looks for tokens which are in conjunction with each other.
-        We first look for the head of the conjoined phrase and append its (delexicalised) label to
+        Search for the head of the conjoined phrase and append its (delexicalised) label to
         all of its conjuncts.
-
         """
 
         delexicalised_sentence = []
 
-        seen_first_conj = False
         for token in annotated_sentence:
             edeps = token.deps_set
             for i, edep in enumerate(edeps):
@@ -184,44 +172,39 @@ class DelexicaliseConllu(object):
                 if base_relation == "conj":
                     first_conjunct_index = enhanced_head
                     
-                    if not seen_first_conj:
-                        try:
-                            first_conjunct_token = annotated_sentence[int(first_conjunct_index) -1]
-                        except ValueError:
-                            # For elided tokens, e.g. 5.1, we can scan through the ID column and look for the
-                            # index which corresponds to the first_conjunct.
-                            for token_index, token in enumerate(annotated_sentence):
-                                if token.id == first_conjunct_index:
-                                    first_conjunct_token = annotated_sentence[int(token_index)]
+                    try:
+                        first_conjunct_token = annotated_sentence[int(first_conjunct_index) -1]
+                    except ValueError:
+                        # For elided tokens, e.g. 5.1, we can scan through the ID column and look for the
+                        # index which corresponds to the first_conjunct.
+                        for token_index, token in enumerate(annotated_sentence):
+                            if token.id == first_conjunct_index:
+                                first_conjunct_token = annotated_sentence[int(token_index)]
 
-                        fct_children = first_conjunct_token.children
-                        fct_edeps = first_conjunct_token.deps_set
-                        for i, edep in enumerate(fct_edeps):
-                            # get the base relation of the FCT and check the FCT's children to see if they share the same
-                            # label                      
-                            fct_edep = stitch_edeps_items(edep)
+                    fct_children = first_conjunct_token.children
+                    fct_edeps = first_conjunct_token.deps_set
+                    for i, edep in enumerate(fct_edeps):
+                        # Get the base relation of the FCT and check the FCT's children to see if they share the same label                      
+                        fct_edep = stitch_edeps_items(edep)
+                        # We are only concerned with propagating lexicalised labels
+                        # >= 3 here because the edep also includes the head.
+                        if len(fct_edep.split(":")) >= 3:
+                            # 1) Pass first conjunct's head to all children with matching shorthand label
+                            for fct_child in fct_children:
+                                fct_child_edeps = fct_child.deps_set
+                                for i, edep in enumerate(fct_child_edeps):
+                                    fct_child_edep = stitch_edeps_items(edep)
+                                    # if the shortened edep has the same label as the first conjunct, take its delexicalised label.
+                                    if fct_edep.split(":")[:-1] == fct_child_edep.split(":")[:-1]:
+                                        #print(f"{fct_edep.split(':')[:-1]} = {fct_child_edep.split(':')[:-1]}")
+                                        # set edep to that of the FCT's
+                                        edep = fct_edep
+                                        fct_child_edeps[i] = unstitch_edeps_items(edep)
 
-                            # we are only concerned with propagating lexicalised labels
-                            # >= 3 here because the edep also includes the head.
-                            if len(fct_edep.split(":")) >= 3:
-
-                                # 1) Pass first conjunct's head to all children with matching shorthand label
-                                for fct_child in fct_children:
-                                    fct_child_edeps = token.deps_set
-                                    for i, edep in enumerate(fct_child_edeps):
-                                        fct_child_edep = stitch_edeps_items(edep)
-                                        # if the shortened edep has the same label as the first conjunct, take its delexicalised label.
-                                        if fct_edep.split(":")[:-1] == fct_child_edep.split(":")[:-1]: # TODO: Can the a word have two heads with same label?
-                                            edep = fct_edep
-                                            fct_child_edeps[i] = unstitch_edeps_items(edep)
-
-                                    # update child token deps
-                                    fct_child.deps_set = fct_child_edeps
-                                    # update counters
-                                    self.deprel_count.update(["first delexicalised conjunct propagated"])
-
-                            # Just do this process once.
-                            seen_first_conj = True
+                                # update child token deps
+                                fct_child.deps_set = fct_child_edeps
+                                # update counters
+                                self.deprel_count.update(["first delexicalised conjunct propagated"])
 
             # update token deps
             delexicalised_sentence.append(token)
@@ -231,9 +214,8 @@ class DelexicaliseConllu(object):
 
     def propagate_cc_modifier_in_conjs(self, annotated_sentence):
         """
-        For the last conjunct there is usually a 'cc' modifer, e.g. apples, bananas *and* oranges.
+        For the last conjunct there is usually a 'cc' modifer, e.g. apples, bananas and oranges.
         This 'and' needs to be passed to the labels of the words which precede the last conjunct in the sequence.
-        We need to ensure consistency between the labels we are propagating.
         """
 
         delexicalised_sentence = []
@@ -261,8 +243,7 @@ class DelexicaliseConllu(object):
                                     first_conjunct_token = annotated_sentence[int(token_index)]
 
                         fct_children = first_conjunct_token.children
-
-                        # 1) Search through all of the grand-children of the FCT and see which one the 'cc' modifier is attached to
+                        # 1) Search through all of the grandchildren of the FCT and see which one the 'cc' modifier is attached to
                         # then pass that delexicalised label to the other conjuncts.
                         for fct_child in fct_children:
                             for fct_grandchild in fct_child.children:
@@ -275,13 +256,12 @@ class DelexicaliseConllu(object):
                                         for edep in fct_child.deps_set:
                                             if "<cc_delex>" in edep[1]:
                                                 # TODO: should we take everything but the head (even though the head is usually always the same)
-                                                cc_to_propagate = stitch_edeps_items(edep)
+                                                cc_to_propagate = edep
                                                 seen_cc_modifier = True
 
-                        # 2) Pass delexicalised label from last conjunct upwards
+                        # 2) Now that we have found the cc modifier, traverse the conj chain and use that label.
                         if seen_cc_modifier:
                             for fct_child in fct_children:
-
                                 fct_child_edeps = fct_child.deps_set
                                 for i, edep in enumerate(fct_child_edeps):
                                     # skip head and lexical label
@@ -289,7 +269,7 @@ class DelexicaliseConllu(object):
                                     # if the shortened edep has the same label as the first conjunct, take its delexicalised label.
                                     if edep_short == "conj":
                                         # replace edep item with the label of the first conjunct.
-                                        edep = unstitch_edeps_items(cc_to_propagate)
+                                        edep = cc_to_propagate
                                         fct_child_edeps[i] = edep
 
                                 # update child token deps
