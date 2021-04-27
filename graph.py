@@ -5,6 +5,7 @@ import re
 import numpy as np
 
 
+
 def parse_features(features):
     """
     Parses the token's morphological features.
@@ -54,6 +55,36 @@ def parse_deps(deps):
 
     return parsed_deps
 
+def pack_deps(deps_set):
+    """ """
+    tmp = []
+    for edep in deps_set:
+        stitched = stitch_edeps_items(edep)
+        tmp.append(stitched)
+    
+    deps = "|".join(tmp)
+    return deps
+
+def stitch_edeps_items(edep):
+    """Unpacks an edep item of the form ('4', 'punct') to 4:punct"""
+
+    head = edep[0]
+    label = edep[1]
+            
+    tmp = []
+    tmp.append(head)
+    tmp.append(label)
+    edep = ":".join(tmp)
+    return edep
+
+def unstitch_edeps_items(edep):
+    """4:punct > ('4', 'punct')"""
+
+    head = edep.split(":")[0]
+    label = ":".join(edep.split(":")[1:])
+    edep = (head, label)
+    return edep
+
 
 class ConlluToken:
     """
@@ -72,7 +103,8 @@ class ConlluToken:
                 deprel = None,
                 deps = None,
                 misc = None,
-                children = None):
+                children = None,
+                process_deps = False):
         
         self.id = id
         self.word = word
@@ -89,6 +121,9 @@ class ConlluToken:
 
         # dependents of the current word
         self.children = []
+        
+        # do some form of processing on deps, if so write out the altered deps items
+        self.process_deps = process_deps
 
 
     def cleaned(self):
@@ -98,8 +133,14 @@ class ConlluToken:
         return ConlluToken(self.id, self.word, self.lemma, self.upos, self.xpos, self.feats, self.head, self.deprel, self.deps, self.misc)
 
     def __str__(self):
-       conllu_row = [str(self.id), self.word, self.lemma, self.upos, self.xpos, self.feats, str(self.head), self.deprel, self.deps, self.misc]
-       return '\t'.join(['_' if item is None else item for item in conllu_row])
+        print(self.deps)
+        print(pack_deps(self.deps_set))
+        conllu_row = [str(self.id), self.word, self.lemma, \
+                    self.upos, self.xpos, self.feats, \
+                    str(self.head), self.deprel, \
+                    pack_deps(self.deps_set), \
+                    self.misc]
+        return '\t'.join(['_' if item is None else item for item in conllu_row])
 
     def __repr__(self):
         #return "{}_{}_{}|||{}".format(self.word, self.deprel, self.head, self.deps)
