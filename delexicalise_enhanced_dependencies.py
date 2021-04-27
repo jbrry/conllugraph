@@ -10,8 +10,10 @@ LONG_BASIC_LABELS = ["nmod:poss", "nsubj:pass", "nsubj:xsubj", "acl:relcl", "aux
 LABELS_TO_EXCLUDE = ["root", "poss", "parataxis", "ref"]
 
 """
-Bugged sentences:
-Because the US and Pakistan have managed to capture or kill about 2/3s of the top 25 al-Qaeda commanders, the middle managers are not in close contact with al-Zawahiri and Bin Laden.
+Sample sentences:
+# text = Because the US and Pakistan have managed to capture or kill about 2/3s of the top 25 al-Qaeda commanders, the middle managers are not in close contact with al-Zawahiri and Bin Laden.
+# text = I didn't either until I clicked on the down button and they popped up.
+
 """
 
 
