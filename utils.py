@@ -1,5 +1,7 @@
 # based on the C2L2 utils in https://github.com/CoNLL-UD-2017/C2L2/blob/master/cdparser_multi/io.py
 
+from collections import defaultdict
+
 from graph import ConlluToken
 
 # set CoNLL-U columns as indices
@@ -52,6 +54,8 @@ def read_conll(filename):
     words = []
     tokens = []
     edges = []
+    comments = defaultdict(lambda: [])
+    sentence_index = 1
     annotated_sentences = []
 
     sentence_start = False
@@ -68,11 +72,14 @@ def read_conll(filename):
 
         # Handle sentence start boundaries
         if not sentence_start:
-            # Skip comments
+
             if line.startswith("#"):
+                comments[sentence_index].append(line.strip())
                 continue
+
             # Start a new sentence
             sentence_start = True
+            sentence_index += 1
             # Append dummy ROOT to start of sentence
             words.append(root)
         if not line:
@@ -111,4 +118,4 @@ def read_conll(filename):
 
     file.close()
 
-    return annotated_sentences
+    return annotated_sentences, comments
