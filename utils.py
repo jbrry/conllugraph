@@ -54,9 +54,10 @@ def read_conll(filename):
     words = []
     tokens = []
     edges = []
-    comments = defaultdict(lambda: [])
-    sentence_index = 1
     annotated_sentences = []
+    
+    sentence_index = 1
+    comments = defaultdict(lambda: [])
 
     sentence_start = False
     while True:
@@ -72,11 +73,9 @@ def read_conll(filename):
 
         # Handle sentence start boundaries
         if not sentence_start:
-
             if line.startswith("#"):
                 comments[sentence_index].append(line.strip())
                 continue
-
             # Start a new sentence
             sentence_start = True
             sentence_index += 1

@@ -16,7 +16,7 @@ Sample sentences:
 
 """
 
-def write_output_file(input_path, delexicalised_sentences):
+def write_output_file(input_path, delexicalised_sentences, comment_lines):
     """
     Takes an input path and the delexicalsed sentences and writes them to an output
     file in CoNLL-U format.
@@ -38,7 +38,10 @@ def write_output_file(input_path, delexicalised_sentences):
 
     outfile = os.path.join(output_path, basename)
     with open(outfile, 'w', encoding='utf-8') as fo:
-        for sent in delexicalised_sentences:
+        for sentence_information, sent in zip(comment_lines.values(), delexicalised_sentences):
+            for line in sentence_information:
+                fo.write(line + "\n") 
+
             for conllu_token in sent:
                 fo.write(str(conllu_token) + "\n")
             fo.write("\n")
@@ -94,8 +97,6 @@ class DelexicaliseConllu(object):
         search for its dependents, if the token has a 'case', 'mark' or 'cc' dependent,
         the enhanced label will be set to a placeholder label which
         will be reconstructed in a post-processing step.
-
-        TODO: don't take ccomp deps
         """
 
         delexicalised_sentence = []
@@ -307,13 +308,13 @@ def main(argv):
 
     if args.input:
         base_input = os.path.basename(args.input)
-        input_annotated_sentences = conllu_graph.build_dataset(args.input)
+        input_annotated_sentences, comment_lines = conllu_graph.build_dataset(args.input)
         input_sentence_edges = conllu_graph.build_edges(input_annotated_sentences)
 
         delexicalise_conllu = DelexicaliseConllu(args.attach_morphological_case, args.visualise)
         output_delexicalised_sentences, deprel_count, lexical_item_count, lexicalised_deprels_count = delexicalise_conllu.delexicalise(input_annotated_sentences)
 
-        write_output_file(args.input, output_delexicalised_sentences)
+        write_output_file(args.input, output_delexicalised_sentences, comment_lines)
 
         # print(deprel_count)
         # print(lexical_item_count)

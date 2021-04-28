@@ -10,8 +10,8 @@ class ConlluGraph:
         """Reads an input CoNLL-U file and returns a list of ConlluToken objects for each token in a sentence."""
 
         print("Building dataset using {}".format(filename))
-        annotated_sentences, comments = read_conll(filename)      
-        return annotated_sentences, comments
+        annotated_sentences, comment_lines = read_conll(filename)      
+        return annotated_sentences, comment_lines
 
     def build_edges(self, annotated_sentences):
         """Builds individual edges."""
