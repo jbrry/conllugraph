@@ -44,6 +44,7 @@ def write_output_file(input_path, delexicalised_sentences, comment_lines):
 
             for conllu_token in sent:
                 fo.write(str(conllu_token) + "\n")
+                #print(str(conllu_token))
             fo.write("\n")
 
 
@@ -112,6 +113,7 @@ class DelexicaliseConllu(object):
                 if len(enhanced_label.split(":")) >= 2:
                     if enhanced_label not in LONG_BASIC_LABELS:
                         self.lexicalised_deprels_count.update([f"{enhanced_label}"])
+                        lexical_item = enhanced_label.split(":")[-1]
 
                         # Look at the token's children and see if they have modifiers which involve attaching a lemma.
                         for token_child in token.children:
@@ -121,7 +123,6 @@ class DelexicaliseConllu(object):
 
                                 # 1) Token has a "case" dependent
                                 if token_child_enhanced_label == "case":
-                                    lexical_item = enhanced_label.split(":")[-1]
                                     delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<case_delex>"))
                                     edeps[i] = delexicalised_edep
                                     # update counters
@@ -130,7 +131,6 @@ class DelexicaliseConllu(object):
 
                                 # 2) Token has a "mark" dependent
                                 elif token_child_enhanced_label == "mark":
-                                    lexical_item = enhanced_label.split(":")[-1]
                                     delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<mark_delex>"))
                                     edeps[i] = delexicalised_edep
                                     # update counters
@@ -139,7 +139,6 @@ class DelexicaliseConllu(object):
 
                                 # 3) Token has a "cc" dependent but only append the lemma if the edep is "conj"
                                 elif token_child_enhanced_label == "cc":
-                                    lexical_item = enhanced_label.split(":")[-1]
                                     if enhanced_label.split(":")[0] == "conj":
                                         delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<cc_delex>"))
                                         edeps[i] = delexicalised_edep
@@ -163,6 +162,7 @@ class DelexicaliseConllu(object):
         delexicalised_sentence = []
 
         for token in annotated_sentence:
+
             edeps = token.deps_set
             for i, edep in enumerate(edeps):
                 enhanced_head = edep[0]
@@ -178,11 +178,13 @@ class DelexicaliseConllu(object):
                     except ValueError:
                         # For elided tokens, e.g. 5.1, we can scan through the ID column and look for the
                         # index which corresponds to the first_conjunct.
-                        for token_index, token in enumerate(annotated_sentence):
-                            if token.conllu_id == first_conjunct_index:
-                                first_conjunct_token = annotated_sentence[int(token_index)]
+                        for target_index, target_token in enumerate(annotated_sentence):
+                            if target_token.conllu_id == first_conjunct_index:
+                                first_conjunct_token = annotated_sentence[int(target_index)]
+ 
 
                     fct_children = first_conjunct_token.children
+                    
                     fct_edeps = first_conjunct_token.deps_set
                     for i, edep in enumerate(fct_edeps):
                         # Get the base relation of the FCT and check the FCT's children to see if they share the same label                      
@@ -239,9 +241,9 @@ class DelexicaliseConllu(object):
                         except ValueError:
                             # For elided tokens, e.g. 5.1, we can scan through the ID column and look for the
                             # index which corresponds to the first_conjunct.
-                            for token_index, token in enumerate(annotated_sentence):
-                                if token.conllu_id == first_conjunct_index:
-                                    first_conjunct_token = annotated_sentence[int(token_index)]
+                            for target_index, target_token in enumerate(annotated_sentence):
+                                if target_token.conllu_id == first_conjunct_index:
+                                    first_conjunct_token = annotated_sentence[int(target_index)]
 
                         fct_children = first_conjunct_token.children
                         # 1) Search through all of the grandchildren of the FCT and see which one the 'cc' modifier is attached to
