@@ -13,7 +13,7 @@ LABELS_TO_EXCLUDE = ["root", "poss", "parataxis", "ref"]
 Sample sentences:
 # text = Because the US and Pakistan have managed to capture or kill about 2/3s of the top 25 al-Qaeda commanders, the middle managers are not in close contact with al-Zawahiri and Bin Laden.
 # text = I didn't either until I clicked on the down button and they popped up.
-
+# text = Various mitigating actions have been and will be taken to provide focus, gain comfort over control levels and to provide assurance to senior management as to the accuracy of the Q1 DPR and business balance sheet.
 """
 
 def write_output_file(input_path, delexicalised_sentences, comment_lines):
@@ -179,7 +179,7 @@ class DelexicaliseConllu(object):
                         # For elided tokens, e.g. 5.1, we can scan through the ID column and look for the
                         # index which corresponds to the first_conjunct.
                         for token_index, token in enumerate(annotated_sentence):
-                            if token.id == first_conjunct_index:
+                            if token.conllu_id == first_conjunct_index:
                                 first_conjunct_token = annotated_sentence[int(token_index)]
 
                     fct_children = first_conjunct_token.children
@@ -240,7 +240,7 @@ class DelexicaliseConllu(object):
                             # For elided tokens, e.g. 5.1, we can scan through the ID column and look for the
                             # index which corresponds to the first_conjunct.
                             for token_index, token in enumerate(annotated_sentence):
-                                if token.id == first_conjunct_index:
+                                if token.conllu_id == first_conjunct_index:
                                     first_conjunct_token = annotated_sentence[int(token_index)]
 
                         fct_children = first_conjunct_token.children

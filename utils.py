@@ -41,7 +41,7 @@ def read_conll(filename):
             try:
                 parent = words[int(word.head)]
                 # don't append children for notional ROOT
-                if parent.id != "0":
+                if parent.conllu_id != "0":
                     parent.children.append(word)
             except ValueError:
                 # Elided token
@@ -59,55 +59,42 @@ def read_conll(filename):
     sentence_index = 1
     comments = defaultdict(lambda: [])
 
-    sentence_start = False
     while True:
         line = file.readline()
-        # end of file
+
+        # Set sentence_start to True for start of file.
+        sentence_start = True
+
+        # End of file
         if not line:
             if len(words) > 0:
                 get_children(words)
                 annotated_sentences.append(words)
                 words, tokens, edges = [], [], []
             break
-        line = line.rstrip("\r\n")
+        
+        line = line.rstrip("\r\n") # individual lines without linebreaks
 
-        # Handle sentence start boundaries
-        if not sentence_start:
-            if line.startswith("#"):
-                comments[sentence_index].append(line.strip())
-                continue
-            # Start a new sentence
+        if line.startswith("#"):
+            if sentence_start == True:
+                # append dummy root node
+                words = [root]
+            sentence_start = False
+            comments[sentence_index].append(line.strip())
+
+        # Sentence ends, process items and create empty lists for next sentence
+        if not line:
+            # reset sentence_start to True for next line
             sentence_start = True
             sentence_index += 1
-            # Append dummy ROOT to start of sentence
-            words.append(root)
-        if not line:
-            sentence_start = False
             if len(words) > 0:
                 get_children(words)
                 annotated_sentences.append(words)
                 words, tokens, edges = [], [], []
-            continue
 
-        # Read next token/word
+        # Normal UD Line
         columns = line.split("\t")
-
-        # Handle multi-word tokens to save word(s)
-        if "-" in columns[ID]:
-            start, end = map(int, columns[ID].split("-"))
-            tokens.append((start, end + 1, columns[FORM]))
-
-            for _ in range(start, end + 1):
-                word_line = file.readline().rstrip("\r\n")
-                word_columns = word_line.split("\t")
-                words.append(get_word(word_columns))
-                if word_columns[HEAD].isdigit():
-                    head = int(word_columns[HEAD])
-                else:
-                    head = -1
-                edges.append((head, int(word_columns[ID]), word_columns[DEPREL].split(":")[0]))
-        # Regular tokens/words
-        else:
+        if len(columns) == 10:
             words.append(get_word(columns))
             if columns[HEAD].isdigit():
                 head = int(columns[HEAD])

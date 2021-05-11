@@ -21,15 +21,15 @@ class ConlluGraph:
             # dictionary with conllu ID as key and a tuple of (id, head, rel) as value.
             self.edges = {}
             for token in annotated_sentence:
-                self.edges[token.id] = []
-                self.edges[token.id].append(self.create_edge(token))
+                self.edges[token.conllu_id] = []
+                self.edges[token.conllu_id].append(self.create_edge(token))
             self.sentence_edges.append(self.edges)
         return self.sentence_edges
 
     def create_edge(self, current_token):
         """Creates a labelled edge between the current token and its head."""
 
-        self.modifier = current_token.id
+        self.modifier = current_token.conllu_id
         self.head = current_token.head
         self.deprel = current_token.deprel
         return (self.modifier, self.head, self.deprel)
@@ -51,9 +51,9 @@ class SubGraph(object):
         self.node3 = node3
 
     def __str__(self):         
-         return "{}|{} ({})  {}|{} ({})  {}|{}".format(self.node1.id, self.node1.lemma, self.node1.deprel,
-                                                        self.node2.id, self.node2.word, self.node2.deps_set, 
-                                                        self.node3.id, self.node3.word)
+         return "{}|{} ({})  {}|{} ({})  {}|{}".format(self.node1.conllu_id, self.node1.lemma, self.node1.deprel,
+                                                        self.node2.conllu_id, self.node2.word, self.node2.deps_set, 
+                                                        self.node3.conllu_id, self.node3.word)
 
 
 
