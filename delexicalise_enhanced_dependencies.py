@@ -5,9 +5,18 @@ from collections import Counter
 from conllugraph import ConlluGraph
 from graph import stitch_edeps_items, unstitch_edeps_items
 
-LONG_BASIC_LABELS = ["nmod:poss", "nsubj:pass", "nsubj:xsubj", "acl:relcl", "aux:pass", "compound:prt", "obl:npmod", "det:predet", "nmod:npmod", "cc:preconj"] # Add any more or get this from a Vocab file
-
-LABELS_TO_EXCLUDE = ["root", "poss", "parataxis", "ref"]
+LONG_BASIC_LABELS=[
+    "nmod:poss",
+    "nsubj:pass",
+    "nsubj:xsubj",
+    "acl:relcl",
+    "aux:pass",
+    "compound:prt",
+    "obl:npmod",
+    "det:predet",
+    "nmod:npmod",
+    "cc:preconj"
+    ] # Add any more or get this from a Vocab file
 
 """
 Sample sentences:
@@ -68,7 +77,6 @@ class DelexicaliseConllu(object):
         self.lexical_item_count = Counter()
         self.lexicalised_deprels_count = Counter()
 
-
     def delexicalise(self, annotated_sentences):
         """Perform various types of delexicalisation."""
 
@@ -76,16 +84,15 @@ class DelexicaliseConllu(object):
 
         for annotated_sentence in annotated_sentences:
         
-            # Delexicalise enhanced relations which involve 'case' and 'mark' dependents.
+            # Delexicalise enhanced relations which involve 'case', 'mark' and 'cc' dependents.
             delexicalised_sentence, deprel_count, lexical_item_count, \
                 lexicalised_deprels_count = self.delexicalise_case_mark_cc(annotated_sentence)
-
             # We have delexicalised the labels where tokens have certain modifiers,
             # but we still need to make sure these are applied to conjs which do not have direct
             # modifiers, so they have to get their delexicalised label from the first conjunct.
-            delexicalised_sentence = self.propagate_first_conj_labels(delexicalised_sentence)
+            #delexicalised_sentence = self.propagate_first_conj_labels(delexicalised_sentence)
             # Now propagate 'cc' modifier to all conjuncts
-            delexicalised_sentence = self.propagate_cc_modifier_in_conjs(delexicalised_sentence)
+            #delexicalised_sentence = self.propagate_cc_modifier_in_conjs(delexicalised_sentence)
 
             output_delexicalised_sentences.append(delexicalised_sentence)
 
@@ -96,8 +103,8 @@ class DelexicaliseConllu(object):
         This delexicalisation procedure involves:
         For each word, checking its dependency label; if it contains lexical information,
         search for its dependents, if the token has a 'case', 'mark' or 'cc' dependent,
-        the enhanced label will be set to a placeholder label which
-        will be reconstructed in a post-processing step.
+        the enhanced label will be set to a placeholder label denoting the type of modifier
+        which will be reconstructed in a post-processing step.
         """
 
         delexicalised_sentence = []
@@ -111,7 +118,9 @@ class DelexicaliseConllu(object):
 
                 # Likely a lexicalised head
                 if len(enhanced_label.split(":")) >= 2:
+                    
                     if enhanced_label not in LONG_BASIC_LABELS:
+                        #print(enhanced_label)
                         self.lexicalised_deprels_count.update([f"{enhanced_label}"])
                         lexical_item = enhanced_label.split(":")[-1]
 
@@ -160,9 +169,10 @@ class DelexicaliseConllu(object):
         """
 
         delexicalised_sentence = []
+        visited_conjuncts = set()
+        possible_duplicates = []
 
         for token in annotated_sentence:
-
             edeps = token.deps_set
             for i, edep in enumerate(edeps):
                 enhanced_head = edep[0]
@@ -172,45 +182,51 @@ class DelexicaliseConllu(object):
                 base_relation = enhanced_label.split(":")[0]
                 if base_relation == "conj":
                     first_conjunct_index = enhanced_head
-                    
-                    try:
-                        first_conjunct_token = annotated_sentence[int(first_conjunct_index) -1]
-                    except ValueError:
-                        # For elided tokens, e.g. 5.1, we can scan through the ID column and look for the
-                        # index which corresponds to the first_conjunct.
-                        for target_index, target_token in enumerate(annotated_sentence):
-                            if target_token.conllu_id == first_conjunct_index:
-                                first_conjunct_token = annotated_sentence[int(target_index)]
- 
+                    # As EUD sentences may contain elided tokens, e.g. 5.1, we can't directly access
+                    # the token from the head ID, so we search for matching conllu_ids instead 
+                    for target_index, target_token in enumerate(annotated_sentence):
+                        if target_token.conllu_id == first_conjunct_index:
+                            first_conjunct_token = annotated_sentence[int(target_index)]
+
 
                     fct_children = first_conjunct_token.children
                     
                     fct_edeps = first_conjunct_token.deps_set
                     for i, edep in enumerate(fct_edeps):
-                        # Get the base relation of the FCT and check the FCT's children to see if they share the same label                      
+                        # Get the base relation of the FCT and check the FCT's children to see if they share the same label.                     
                         fct_edep = stitch_edeps_items(edep)
                         # We are only concerned with propagating lexicalised labels
-                        # >= 3 here because the edep also includes the head.
+                        # >= 3 here because the stitched edep also includes the head.
                         if len(fct_edep.split(":")) >= 3:
-                            # 1) Pass first conjunct's head to all children with matching shorthand label
+                            # 1) Pass first conjunct's enhanced label to all children with matching shorthand label
                             for fct_child in fct_children:
-                                fct_child_edeps = fct_child.deps_set
-                                for i, edep in enumerate(fct_child_edeps):
-                                    fct_child_edep = stitch_edeps_items(edep)
-                                    # if the shortened edep has the same label as the first conjunct, take its delexicalised label.
-                                    if fct_edep.split(":")[:-1] == fct_child_edep.split(":")[:-1]:
-                                        #print(f"{fct_edep.split(':')[:-1]} = {fct_child_edep.split(':')[:-1]}")
-                                        # set edep to that of the FCT's
-                                        edep = fct_edep
-                                        fct_child_edeps[i] = unstitch_edeps_items(edep)
+                                # make sure we are doing this just once for every child of the first conjunct
+                                if fct_child.conllu_id not in visited_conjuncts:
+                                    fct_child_edeps = fct_child.deps_set
+                                    for i, edep in enumerate(fct_child_edeps):
+                                        fct_child_edep = stitch_edeps_items(edep)
+                                        # if the shortened edep has the same label as the first conjunct, take its delexicalised label.
+                                        if fct_edep.split(":")[:-1] == fct_child_edep.split(":")[:-1]:
+                                            #print(f"{fct_edep.split(':')[:-1]} = {fct_child_edep.split(':')[:-1]}")
+                                            # set edep to that of the FCT's
+                                            edep = fct_edep
+                                            fct_child_edeps[i] = unstitch_edeps_items(edep)
 
-                                # update child token deps
-                                fct_child.deps_set = fct_child_edeps
-                                # update counters
-                                self.deprel_count.update(["first delexicalised conjunct propagated"])
+                                    # update child token deps
+                                    fct_child.deps_set = fct_child_edeps
+                                    # make sure the edeps are changed just once as each time a conjunct is encountered
+                                    # it will process all conjs in the chain
+                                    visited_conjuncts.add(fct_child.conllu_id)
+                                    possible_duplicates.append(fct_child.conllu_id)
+                                    # update counters
+                                    self.deprel_count.update(["first delexicalised conjunct propagated"])
 
-            # update token deps
             delexicalised_sentence.append(token)
+
+        # update token deps
+        if len(visited_conjuncts) > 0:
+            if len(visited_conjuncts) != len(possible_duplicates):
+                raise ValueError("A token's deps was modified more than once!")
 
         return delexicalised_sentence
 
@@ -236,14 +252,11 @@ class DelexicaliseConllu(object):
                     first_conjunct_index = enhanced_head
                     
                     if not seen_cc_modifier:
-                        try:
-                            first_conjunct_token = annotated_sentence[int(first_conjunct_index) -1]
-                        except ValueError:
-                            # For elided tokens, e.g. 5.1, we can scan through the ID column and look for the
-                            # index which corresponds to the first_conjunct.
-                            for target_index, target_token in enumerate(annotated_sentence):
-                                if target_token.conllu_id == first_conjunct_index:
-                                    first_conjunct_token = annotated_sentence[int(target_index)]
+                        # As EUD sentences may contain elided tokens, e.g. 5.1, we can't directly access
+                        # the token from the head ID, so we search for matching conllu_ids instead 
+                        for target_index, target_token in enumerate(annotated_sentence):
+                            if target_token.conllu_id == first_conjunct_index:
+                                first_conjunct_token = annotated_sentence[int(target_index)]
 
                         fct_children = first_conjunct_token.children
                         # 1) Search through all of the grandchildren of the FCT and see which one the 'cc' modifier is attached to
