@@ -118,9 +118,7 @@ class DelexicaliseConllu(object):
 
                 # Likely a lexicalised head
                 if len(enhanced_label.split(":")) >= 2:
-                    
                     if enhanced_label not in LONG_BASIC_LABELS:
-                        #print(enhanced_label)
                         self.lexicalised_deprels_count.update([f"{enhanced_label}"])
                         lexical_item = enhanced_label.split(":")[-1]
 
@@ -132,19 +130,21 @@ class DelexicaliseConllu(object):
 
                                 # 1) Token has a "case" dependent
                                 if token_child_enhanced_label == "case":
-                                    delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<case_delex>"))
-                                    edeps[i] = delexicalised_edep
-                                    # update counters
-                                    self.deprel_count.update(["case delexicalised"])
-                                    self.lexical_item_count.update([lexical_item])
+                                    if enhanced_label.split(":")[0] != "conj":
+                                        delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<case_delex>"))
+                                        edeps[i] = delexicalised_edep
+                                        # update counters
+                                        self.deprel_count.update(["case delexicalised"])
+                                        self.lexical_item_count.update([lexical_item])
 
                                 # 2) Token has a "mark" dependent
                                 elif token_child_enhanced_label == "mark":
-                                    delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<mark_delex>"))
-                                    edeps[i] = delexicalised_edep
-                                    # update counters
-                                    self.deprel_count.update(["mark delexicalised"])
-                                    self.lexical_item_count.update([lexical_item])
+                                    if enhanced_label.split(":")[0] != "conj":
+                                        delexicalised_edep = (enhanced_head, enhanced_label.replace(lexical_item, "<mark_delex>"))
+                                        edeps[i] = delexicalised_edep
+                                        # update counters
+                                        self.deprel_count.update(["mark delexicalised"])
+                                        self.lexical_item_count.update([lexical_item])
 
                                 # 3) Token has a "cc" dependent but only append the lemma if the edep is "conj"
                                 elif token_child_enhanced_label == "cc":
