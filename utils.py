@@ -30,22 +30,28 @@ def read_conll(filename):
         """
         return ConlluToken(columns[ID], columns[FORM], columns[LEMMA], columns[UPOS], columns[XPOS], columns[FEATS], columns[HEAD], columns[DEPREL], columns[DEPS], columns[MISC])
 
-
     def get_children(words):
         """
         Arguments:
             words: List of word objects
         """
         # skip ROOT
-        for word in words[1:]:
-            try:
-                parent = words[int(word.head)]
-                # don't append children for notional ROOT
-                if parent.conllu_id != "0":
-                    parent.children.append(word)
-            except ValueError:
-                # Elided token
-                continue
+        words = words[1:]
+        for word in words:
+            parent_deps = word.deps_set
+            
+            for h_l_tuple in parent_deps:
+                parent = h_l_tuple[0]
+                #print(f"token {word.conllu_id}, head {parent}")
+                # As EUD sentences may contain elided tokens, e.g. 5.1, we can't directly access
+                # the token from the head ID, so we search for matching conllu_ids instead 
+                for target_index, target_token in enumerate(words):
+                    if target_token.conllu_id == parent:
+                        parent_token = words[int(target_index)]
+                
+                if parent_token.conllu_id != "0":
+                    parent_token.children.add(word)
+
 
     file = open(filename, "r")
 
