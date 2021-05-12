@@ -93,7 +93,7 @@ class ConlluToken:
     Store each CoNLL-U attribute per token.
     """
     def __init__(self,
-                id = None,
+                conllu_id = None,
                 word = None,
                 lemma = None,
                 upos = None,
@@ -106,7 +106,7 @@ class ConlluToken:
                 children = None,
                 process_deps = False):
         
-        self.id = id
+        self.conllu_id = conllu_id
         self.word = word
         self.lemma = lemma if lemma else "_"
         self.upos = upos if upos else "_"
@@ -120,7 +120,7 @@ class ConlluToken:
         self.misc = misc if misc else "_"
 
         # dependents of the current word
-        self.children = []
+        self.children = set()
         
         # do some form of processing on deps, if so write out the altered deps items
         self.process_deps = process_deps
@@ -130,12 +130,10 @@ class ConlluToken:
         return ConlluToken(self.word, "_")
 
     def clone(self):
-        return ConlluToken(self.id, self.word, self.lemma, self.upos, self.xpos, self.feats, self.head, self.deprel, self.deps, self.misc)
+        return ConlluToken(self.conllu_id, self.word, self.lemma, self.upos, self.xpos, self.feats, self.head, self.deprel, self.deps, self.misc)
 
     def __str__(self):
-        print(self.deps)
-        print(pack_deps(self.deps_set))
-        conllu_row = [str(self.id), self.word, self.lemma, \
+        conllu_row = [str(self.conllu_id), self.word, self.lemma, \
                     self.upos, self.xpos, self.feats, \
                     str(self.head), self.deprel, \
                     pack_deps(self.deps_set), \
