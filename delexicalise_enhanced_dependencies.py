@@ -287,7 +287,7 @@ class DelexicaliseConllu(object):
                                         edep_short = edep[1].split(":")[0]
                                         # if the edep is also a conj
                                         if edep_short == "conj":
-                                            print(f"edep: {edep} last cc: {cc_to_propagate}")
+                                            #print(f"edep: {edep} last cc: {cc_to_propagate}")
                                             # replace the label with the last conj's cc dependent
                                             edep = (edep[0], edep[1].replace(edep[1], cc_to_propagate))
                                             fct_child_edeps[i] = edep
