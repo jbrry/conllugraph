@@ -227,9 +227,9 @@ class RelexicaliseConllu(object):
 
             relexicalised_sentence.append(token)
 
-        if len(visited_conjuncts) > 0:
-            if len(visited_conjuncts) != len(possible_duplicates):
-                raise ValueError("A token's deps was modified more than once!")
+        # if len(visited_conjuncts) > 0:
+        #     if len(visited_conjuncts) != len(possible_duplicates):
+        #         raise ValueError("A token's deps was modified more than once!")
         
         return relexicalised_sentence
 
@@ -301,9 +301,9 @@ class RelexicaliseConllu(object):
 
             relexicalised_sentence.append(token)
 
-        if len(visited_conjuncts) > 0:
-            if len(visited_conjuncts) != len(possible_duplicates):
-                raise ValueError("A token's deps was modified more than once!")
+        #if len(visited_conjuncts) > 0:
+        #    if len(visited_conjuncts) != len(possible_duplicates):
+        #        raise ValueError("A token's deps was modified more than once!")
 
         return relexicalised_sentence
 
