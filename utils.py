@@ -42,16 +42,16 @@ def read_conll(filename):
             
             for h_l_tuple in parent_deps:
                 parent = h_l_tuple[0]
-                #print(f"token {word.conllu_id}, head {parent}")
-                # As EUD sentences may contain elided tokens, e.g. 5.1, we can't directly access
-                # the token from the head ID, so we search for matching conllu_ids instead 
-                for target_index, target_token in enumerate(words):
-                    if target_token.conllu_id == parent:
-                        parent_token = words[int(target_index)]
-                
-                if parent_token.conllu_id != "0":
-                    parent_token.children.add(word)
+                # skip ROOT
+                if parent != "0":
+                    # As EUD sentences may contain elided tokens, e.g. 5.1, we can't directly access
+                    # the token from the head ID, so we search for matching conllu_ids instead
+                    for target_index, target_token in enumerate(words):
+                        if target_token.conllu_id == parent:
+                            parent_token = words[int(target_index)]
 
+                    parent_token.children.add(word)
+                    print(f"parent {parent}, children: {parent_token.children}")
 
     file = open(filename, "r")
 
