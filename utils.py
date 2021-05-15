@@ -51,7 +51,7 @@ def read_conll(filename):
                             parent_token = words[int(target_index)]
 
                     parent_token.children.add(word)
-                    print(f"parent {parent}, children: {parent_token.children}")
+                    #print(f"parent {parent}, children: {parent_token.children}")
 
     file = open(filename, "r")
 
