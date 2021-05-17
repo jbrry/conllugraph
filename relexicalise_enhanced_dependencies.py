@@ -1,4 +1,5 @@
 import sys
+import re
 import os.path
 from collections import Counter
 
@@ -115,8 +116,8 @@ class RelexicaliseConllu(object):
 
         # Operate on each token apart from ROOT
         for token in annotated_sentence[1:]:
-            print(token)
-            print(token.children)
+            #print(token)
+            #print(token.children)
             edeps = token.deps_set
             for i, edep in enumerate(edeps):
                 enhanced_head = edep[0]
@@ -125,15 +126,23 @@ class RelexicaliseConllu(object):
                 # 1) Relexicalise "case" placeholders
                 if "<case_delex>" in enhanced_label:
                     print(enhanced_label)
+                    #print(enhanced_label)
                     for token_child in token.children:
                         #print(token_child)
                         token_child_edeps = token_child.deps_set
                         for token_child_edep in token_child_edeps:
-                            print(token_child_edep)
+                            #print(token_child_edep)
                             token_child_enhanced_label = token_child_edep[1]
                             if token_child_enhanced_label == "case":
                                 lexical_item = token_child.lemma
-                                relexicalised_edep = (enhanced_head, enhanced_label.replace("<case_delex>", lexical_item))
+
+                                parts = enhanced_label.split(":")
+                                for j, part in enumerate(parts):
+                                    relex_part = re.sub("<case_delex>", lexical_item, part)
+                                    parts[j] = relex_part
+                                enhanced_label = ":".join(parts)
+                                relexicalised_edep = (enhanced_head, enhanced_label)
+
                                 edeps[i] = relexicalised_edep
                                 # update counters
                                 self.deprel_count.update(["case relexicalised"])
@@ -147,7 +156,14 @@ class RelexicaliseConllu(object):
                             token_child_enhanced_label = token_child_edep[1]
                             if token_child_enhanced_label == "mark":
                                 lexical_item = token_child.lemma
-                                relexicalised_edep = (enhanced_head, enhanced_label.replace("<mark_delex>", lexical_item))
+
+                                parts = enhanced_label.split(":")
+                                for j, part in enumerate(parts):
+                                    relex_part = re.sub("<mark_delex>", lexical_item, part)
+                                    parts[j] = relex_part
+                                enhanced_label = ":".join(parts)
+                                relexicalised_edep = (enhanced_head, enhanced_label)
+                                
                                 edeps[i] = relexicalised_edep
                                 # update counters
                                 self.deprel_count.update(["mark relexicalised"])
@@ -161,7 +177,14 @@ class RelexicaliseConllu(object):
                             token_child_enhanced_label = token_child_edep[1]
                             if token_child_enhanced_label == "cc":
                                 lexical_item = token_child.lemma
-                                relexicalised_edep = (enhanced_head, enhanced_label.replace("<cc_delex>", lexical_item))
+
+                                parts = enhanced_label.split(":")
+                                for j, part in enumerate(parts):
+                                    relex_part = re.sub("<cc_delex>", lexical_item, part)
+                                    parts[j] = relex_part
+                                enhanced_label = ":".join(parts)
+                                relexicalised_edep = (enhanced_head, enhanced_label)
+                                
                                 edeps[i] = relexicalised_edep
                                 # update counters
                                 self.deprel_count.update(["cc relexicalised"])
