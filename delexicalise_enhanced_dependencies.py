@@ -6,6 +6,46 @@ from collections import Counter
 from conllugraph import ConlluGraph
 from graph import stitch_edeps_items, unstitch_edeps_items
 
+
+edeps = {}
+first_edeps = {}
+with open("/home/james/IWPT-2021-shared-task/tools/data/edeprel.cs") as inf:
+    for line in inf:
+        line = line.rstrip("\r\n") # individual lines without linebreaks
+        edeps[line] = None
+        first_edeps[line.split(":")[0]] = None
+
+edeps = list(edeps.keys())
+first_edeps = list(first_edeps.keys())
+#print(edeps)
+#print(first_edeps)
+
+
+features = []
+
+import json
+with open("/home/james/IWPT-2021-shared-task/tools/data/feats.json") as json_file:
+
+    data = json.load(json_file)
+    lang_features = data["features"]["cs"]
+    case_features = lang_features["Case"]
+    used_features = case_features["uvalues"]
+
+    for mf in used_features:
+        if mf.lower() not in features:
+            features.append(mf.lower())
+    #for k, v in lang_features.items():
+
+    #print(used_features)
+    # for x in data:
+    #     print(x)
+    #     print()
+
+    #rint(data)
+
+forbidden_substitutions = first_edeps + features + ["arg", "pass"]
+print(forbidden_substitutions)
+
 LONG_BASIC_LABELS=[
     "nmod:poss",
     "nsubj:pass",
@@ -16,7 +56,36 @@ LONG_BASIC_LABELS=[
     "obl:npmod",
     "det:predet",
     "nmod:npmod",
-    "cc:preconj"
+    "cc:preconj",
+    "obl:arg",
+    "acl:datsub",
+    "acl:relcl",
+    "advmod:emph",
+    "aux:pass",
+    "cc:preconj",
+    "cc:postconj",
+    "compound:dir",
+    "compound:ext",
+    "compound:prt",
+    "compound:redup",
+    "compound:svc",
+    "det:poss",
+    "flat:name",
+    "iobj:patient",
+    "mark:relcl",
+    "nmod:poss",
+    "nsubj:bfoc",
+    "nsubj:caus",
+    "nsubj:cop",
+    "nsubj:ifoc",
+    "nsubj:lfoc",
+    "nsubj:pass",
+    "obj:agent",
+    "obj:patient",
+    "obl:agent",
+    "obl:arg",
+    "obl:patient",
+    "obl:tmod",
     ] # Add any more or get this from a Vocab file
 
 """
@@ -124,6 +193,8 @@ class DelexicaliseConllu(object):
                 if len(enhanced_label.split(":")) >= 2:
                     if enhanced_label not in LONG_BASIC_LABELS:
                         self.lexicalised_deprels_count.update([f"{enhanced_label}"])
+
+                        lexical_index = None
                         if self.attach_morphological_case:
                             # for certain languages, the morphological case is attached to certain dependency labels,
                             # it is not always attached, but it seems to be attached in most cases when the information is present in the morph feats column.
@@ -132,16 +203,31 @@ class DelexicaliseConllu(object):
                                     # no case information is attached for advcl labels
                                     if enhanced_label.split(":")[0] == "advcl":
                                         lexical_item = enhanced_label.split(":")[-1]
+                                        lexical_index = -1
+                                        
                                     else:
                                         lexical_item = enhanced_label.split(":")[-2]
+                                        lexical_index = -2
                                 else:
                                     # the morphological case feature is not present, so the lemma will be at the last index.
                                     lexical_item = enhanced_label.split(":")[-1]
+                                    lexical_index = -1
                             else:
                                 lexical_item = enhanced_label.split(":")[-1]
+                                lexical_index = -1
 
                         else:
                             lexical_item = enhanced_label.split(":")[-1]
+                            lexical_index = -1
+
+                        if lexical_item in forbidden_substitutions:
+                            if lexical_index == -1:
+                                lexical_item = enhanced_label.split(":")[-2]
+                            elif lexical_index == -2:
+                                lexical_item = enhanced_label.split(":")[-1]
+                        
+                        if lexical_item in forbidden_substitutions:
+                            continue
 
                         # Look at the token's children and see if they have modifiers which involve attaching a lemma.
                         for token_child in token.children:
@@ -169,7 +255,7 @@ class DelexicaliseConllu(object):
                                 # 2) Token has a "mark" dependent
                                 elif token_child_enhanced_label == "mark":
                                     if enhanced_label.split(":")[0] != "conj":
-
+                                        
                                         parts = enhanced_label.split(":")
                                         for j, part in enumerate(parts):
                                             delex_part = re.sub(r'\b' + lexical_item + r'\b', "<mark_delex>", part)
@@ -185,7 +271,6 @@ class DelexicaliseConllu(object):
                                 # 3) Token has a "cc" dependent but only append the lemma if the edep is "conj"
                                 elif token_child_enhanced_label == "cc":
                                     if enhanced_label.split(":")[0] == "conj":
-
                                         
                                         parts = enhanced_label.split(":")
                                         for j, part in enumerate(parts):
