@@ -28,6 +28,7 @@ def read_conll(filename):
         Returns:
             ConlluToken object for the row which enables accessing the word's fields.
         """
+
         return ConlluToken(columns[ID], columns[FORM], columns[LEMMA], columns[UPOS], columns[XPOS], columns[FEATS], columns[HEAD], columns[DEPREL], columns[DEPS], columns[MISC])
 
     def get_children(words):
@@ -74,7 +75,7 @@ def read_conll(filename):
         # End of file
         if not line:
             if len(words) > 0:
-                get_children(words)
+                get_children([w for w in words if isinstance(w, ConlluToken)])
                 annotated_sentences.append(words)
                 words, tokens, edges = [], [], []
             break
@@ -97,10 +98,14 @@ def read_conll(filename):
                 get_children(words)
                 annotated_sentences.append(words)
                 words, tokens, edges = [], [], []
-
         # Normal UD Line
         columns = line.split("\t")
         if len(columns) == 10:
+            # Handle multi-word tokens to save word(s)
+            #if "-" in columns[ID]:
+            #    words.append(get_word(columns, is_mwt=True))
+            # Basic tokens/words
+            #else:
             words.append(get_word(columns))
             if columns[HEAD].isdigit():
                 head = int(columns[HEAD])

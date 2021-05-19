@@ -6,10 +6,9 @@ from collections import Counter
 from conllugraph import ConlluGraph
 from graph import stitch_edeps_items, unstitch_edeps_items
 
-
 edeps = {}
 first_edeps = {}
-with open("/home/james/IWPT-2021-shared-task/tools/data/edeprel.cs") as inf:
+with open("./tools/data/edeprel.cs") as inf:
     for line in inf:
         line = line.rstrip("\r\n") # individual lines without linebreaks
         edeps[line] = None
@@ -17,14 +16,11 @@ with open("/home/james/IWPT-2021-shared-task/tools/data/edeprel.cs") as inf:
 
 edeps = list(edeps.keys())
 first_edeps = list(first_edeps.keys())
-#print(edeps)
-#print(first_edeps)
-
 
 features = []
 
 import json
-with open("/home/james/IWPT-2021-shared-task/tools/data/feats.json") as json_file:
+with open("./tools/data/feats.json") as json_file:
 
     data = json.load(json_file)
     lang_features = data["features"]["cs"]
@@ -34,14 +30,6 @@ with open("/home/james/IWPT-2021-shared-task/tools/data/feats.json") as json_fil
     for mf in used_features:
         if mf.lower() not in features:
             features.append(mf.lower())
-    #for k, v in lang_features.items():
-
-    #print(used_features)
-    # for x in data:
-    #     print(x)
-    #     print()
-
-    #rint(data)
 
 forbidden_substitutions = first_edeps + features + ["arg", "pass"]
 print(forbidden_substitutions)
@@ -184,13 +172,14 @@ class DelexicaliseConllu(object):
         
         # Operate on each token apart from ROOT
         for token in annotated_sentence[1:]:
+            
             edeps = token.deps_set
             for i, edep in enumerate(edeps):
                 enhanced_head = edep[0]
                 enhanced_label = edep[1]
 
-                # Likely a lexicalised head
-                if len(enhanced_label.split(":")) >= 2:
+                # Likely a lexicalised head (+1 for morph case langs)
+                if len(enhanced_label.split(":")) >= (2 + 1 if self.attach_morphological_case else + 0):
                     if enhanced_label not in LONG_BASIC_LABELS:
                         self.lexicalised_deprels_count.update([f"{enhanced_label}"])
 
@@ -204,7 +193,6 @@ class DelexicaliseConllu(object):
                                     if enhanced_label.split(":")[0] == "advcl":
                                         lexical_item = enhanced_label.split(":")[-1]
                                         lexical_index = -1
-                                        
                                     else:
                                         lexical_item = enhanced_label.split(":")[-2]
                                         lexical_index = -2
@@ -215,18 +203,22 @@ class DelexicaliseConllu(object):
                             else:
                                 lexical_item = enhanced_label.split(":")[-1]
                                 lexical_index = -1
-
                         else:
                             lexical_item = enhanced_label.split(":")[-1]
                             lexical_index = -1
 
+                        ####
                         if lexical_item in forbidden_substitutions:
+                            print(f"forbidden: {lexical_item}")
                             if lexical_index == -1:
                                 lexical_item = enhanced_label.split(":")[-2]
                             elif lexical_index == -2:
                                 lexical_item = enhanced_label.split(":")[-1]
+                            
+                            print(f"changing to: {lexical_item}")
                         
                         if lexical_item in forbidden_substitutions:
+                            print(f"** {enhanced_label} {lexical_item} **")
                             continue
 
                         # Look at the token's children and see if they have modifiers which involve attaching a lemma.
@@ -502,10 +494,13 @@ def main(argv):
 
         # automatically check whether to attach morphological case.
         attach_morphological_case = check_edeps_for_morph_case(input_annotated_sentences)
-        print(attach_morphological_case)
 
         delexicalise_conllu = DelexicaliseConllu(attach_morphological_case, args.visualise, args.attach_morphological_case)
         output_delexicalised_sentences, deprel_count, lexical_item_count, lexicalised_deprels_count = delexicalise_conllu.delexicalise(input_annotated_sentences)
+
+        print(lexical_item_count)
+
+        #print(lexicalised_deprels_count)
 
         write_output_file(args.input, output_delexicalised_sentences, comment_lines)
 

@@ -133,10 +133,12 @@ class ConlluToken:
         return ConlluToken(self.conllu_id, self.word, self.lemma, self.upos, self.xpos, self.feats, self.head, self.deprel, self.deps, self.misc)
 
     def __str__(self):
+
+
         conllu_row = [str(self.conllu_id), self.word, self.lemma, \
                     self.upos, self.xpos, self.feats, \
                     str(self.head), self.deprel, \
-                    pack_deps(self.deps_set), \
+                    pack_deps(self.deps_set) if len(self.deps_set) >=1 else "_", \
                     self.misc]
         return '\t'.join(['_' if item is None else item for item in conllu_row])
 
