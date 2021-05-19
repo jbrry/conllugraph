@@ -75,7 +75,8 @@ def read_conll(filename):
         # End of file
         if not line:
             if len(words) > 0:
-                get_children([w for w in words if isinstance(w, ConlluToken)])
+                get_children(words)
+                #get_children([w for w in words if isinstance(w, ConlluToken)])
                 annotated_sentences.append(words)
                 words, tokens, edges = [], [], []
             break
