@@ -116,8 +116,6 @@ class RelexicaliseConllu(object):
 
         # Operate on each token apart from ROOT
         for token in annotated_sentence[1:]:
-            #print(token)
-            #print(token.children)
             edeps = token.deps_set
             for i, edep in enumerate(edeps):
                 enhanced_head = edep[0]
@@ -125,16 +123,20 @@ class RelexicaliseConllu(object):
 
                 # 1) Relexicalise "case" placeholders
                 if "<case_delex>" in enhanced_label:
-                    print(enhanced_label)
-                    #print(enhanced_label)
                     for token_child in token.children:
-                        #print(token_child)
                         token_child_edeps = token_child.deps_set
                         for token_child_edep in token_child_edeps:
-                            #print(token_child_edep)
                             token_child_enhanced_label = token_child_edep[1]
                             if token_child_enhanced_label == "case":
                                 lexical_item = token_child.lemma
+                                
+                                # check again for fixed children and append to lexical item
+                                for token_grandchild in token_child.children:
+                                    token_grandchild_edeps = token_grandchild.deps_set
+                                    for token_grandchild_edep in token_grandchild_edeps:
+                                        token_grandchild_enhanced_label = token_grandchild_edep[1]
+                                        if token_grandchild_enhanced_label == "fixed":
+                                            lexical_item = f"{lexical_item}_{token_grandchild.lemma}"
 
                                 parts = enhanced_label.split(":")
                                 for j, part in enumerate(parts):

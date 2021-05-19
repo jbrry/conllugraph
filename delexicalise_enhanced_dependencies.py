@@ -125,12 +125,15 @@ class DelexicaliseConllu(object):
                     if enhanced_label not in LONG_BASIC_LABELS:
                         self.lexicalised_deprels_count.update([f"{enhanced_label}"])
                         if self.attach_morphological_case:
-
                             # for certain languages, the morphological case is attached to certain dependency labels,
                             # it is not always attached, but it seems to be attached in most cases when the information is present in the morph feats column.
                             if token.feats_set != None:
                                 if "Case" in token.feats_set:
-                                    lexical_item = enhanced_label.split(":")[-2]
+                                    # no case information is attached for advcl labels
+                                    if enhanced_label.split(":")[0] == "advcl":
+                                        lexical_item = enhanced_label.split(":")[-1]
+                                    else:
+                                        lexical_item = enhanced_label.split(":")[-2]
                                 else:
                                     # the morphological case feature is not present, so the lemma will be at the last index.
                                     lexical_item = enhanced_label.split(":")[-1]
@@ -150,7 +153,7 @@ class DelexicaliseConllu(object):
                                 if token_child_enhanced_label == "case":
                                     if enhanced_label.split(":")[0] != "conj":
 
-#                                       # replace parts
+                                        # replace parts
                                         parts = enhanced_label.split(":")
                                         for j, part in enumerate(parts):
                                             delex_part = re.sub(r'\b' + lexical_item + r'\b', "<case_delex>", part)
