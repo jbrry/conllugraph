@@ -111,7 +111,12 @@ class DelexicaliseConllu(object):
                 enhanced_label = edep[1]
 
                 # Likely a lexicalised head (+1 for morph case langs)
-                if len(enhanced_label.split(":")) >= (2 + 1 if self.attach_morphological_case else + 0):
+                if self.attach_morphological_case:
+                    TARGET_LEN = 3
+                else:
+                    TARGET_LEN = 2
+
+                if len(enhanced_label.split(":")) >= TARGET_LEN:
                     lexical_index = None
                     if self.attach_morphological_case:
                         # for certain languages, the morphological case is attached to certain dependency labels,
@@ -120,6 +125,10 @@ class DelexicaliseConllu(object):
                             if "Case" in token.feats_set:
                                 # no case information is attached for advcl labels
                                 if enhanced_label.split(":")[0] == "advcl":
+                                    lexical_item = enhanced_label.split(":")[-1]
+                                    lexical_index = -1
+                                # no case info on acl:relcl labels in ar_padt
+                                elif ":".join([enhanced_label.split(":")[0], enhanced_label.split(":")[1]]) == "acl:relcl": 
                                     lexical_item = enhanced_label.split(":")[-1]
                                     lexical_index = -1
                                 else:
@@ -136,17 +145,20 @@ class DelexicaliseConllu(object):
                         lexical_item = enhanced_label.split(":")[-1]
                         lexical_index = -1
 
+                    # if the item we are trying to delexicalise is forbidden, try another index.
                     if lexical_item in self.forbidden_list:
-                        #print(f"forbidden: {lexical_item}")
-                        if lexical_index == -1:
-                            lexical_item = enhanced_label.split(":")[-2]
-                        elif lexical_index == -2:
-                            lexical_item = enhanced_label.split(":")[-1]
-                
-                        #print(f"changing to: {lexical_item}")
-                    if lexical_item in self.forbidden_list:
-                        #print(f"** {enhanced_label} {lexical_item} **")
-                        continue
+                        # only do this for morp case langs
+                        if self.attach_morphological_case:
+                            if lexical_index == -1:
+                                try:
+                                    lexical_item = enhanced_label.split(":")[-2]
+                                except IndexError:
+                                    continue
+                            elif lexical_index == -2:
+                                lexical_item = enhanced_label.split(":")[-1]
+                        
+                            if lexical_item in self.forbidden_list:
+                                continue
 
                     # Look at the token's children and see if they have modifiers which involve attaching a lemma.
                     for token_child in token.children:
@@ -402,11 +414,11 @@ def get_forbidden_from_vocab(vocab):
     for mf in feats:
         k, v = mf.split("=")
         if k == "Case":
-            case_info = v.lower()
+            case_info = v.lower():
             featForbidden.update([case_info])
 
     for deprel in vocab["deprels"]:
-        deprelForbidden.update([case_info])
+        deprelForbidden.update([deprel])
     
     for edeprel in vocab["edeprels"]:
         first = edeprel.split(":")[0]
@@ -414,7 +426,7 @@ def get_forbidden_from_vocab(vocab):
     
     forbidden = featForbidden + deprelForbidden + edeprelForbidden
     
-    extras = ["arg", "pass"]
+    extras = ["obl", "arg", "pass"]
 
     forbidden_list = list(forbidden.keys()) + extras
 
