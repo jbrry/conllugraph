@@ -1,4 +1,4 @@
-from utils import read_conll
+from utils import read_conll, buildVocab
 
 class ConlluGraph:
     def __init__(self):
@@ -10,8 +10,9 @@ class ConlluGraph:
         """Reads an input CoNLL-U file and returns a list of ConlluToken objects for each token in a sentence."""
 
         print("Building dataset using {}".format(filename))
-        annotated_sentences, comment_lines = read_conll(filename)      
-        return annotated_sentences, comment_lines
+        annotated_sentences, comment_lines = read_conll(filename)
+        vocab = buildVocab(annotated_sentences, cutoff=1)
+        return annotated_sentences, vocab, comment_lines
 
     def build_edges(self, annotated_sentences):
         """Builds individual edges."""

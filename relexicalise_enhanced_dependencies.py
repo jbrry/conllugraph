@@ -357,7 +357,7 @@ def main(argv):
 
     if args.input:
         base_input = os.path.basename(args.input)
-        input_annotated_sentences, comment_lines = conllu_graph.build_dataset(args.input)
+        input_annotated_sentences, vocab, comment_lines = conllu_graph.build_dataset(args.input)
         input_sentence_edges = conllu_graph.build_edges(input_annotated_sentences)
 
         relexicalise_conllu = RelexicaliseConllu(args.attach_morphological_case, args.visualise)

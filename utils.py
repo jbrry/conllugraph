@@ -1,11 +1,56 @@
 # based on the C2L2 utils in https://github.com/CoNLL-UD-2017/C2L2/blob/master/cdparser_multi/io.py
 
 from collections import defaultdict
+from collections import Counter
 
 from graph import ConlluToken
 
 # set CoNLL-U columns as indices
 ID, FORM, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC = range(10)
+
+
+
+def buildVocab(annotated_sentences, cutoff=1):
+    wordsCount = Counter()
+    charsCount = Counter()
+    uposCount = Counter()
+    xposCount = Counter()
+    deprelCount = Counter()
+    edeprelCount = Counter()
+    featCount = Counter()
+
+    for annotated_sentence in annotated_sentences:
+        for node in annotated_sentence[1:]:
+            # words
+            wordsCount.update([node.word])
+            # feats
+            if type(node.feats_set) == dict:
+                for k, v in node.feats_set.items():
+                    feat_singleton = f"{k}={v}"
+                    featCount.update([feat_singleton])
+            # deprels
+            deprelCount.update([node.deprel])
+            # edeprels
+            if type(node.deps_set) == list:
+                for h_l_tuple in node.deps_set:
+                    enhanced_label = h_l_tuple[1]
+                    edeprelCount.update([enhanced_label])
+
+    # wordsCount = Counter({w: i for w, i in wordsCount.items() if i >= cutoff})
+    print("Vocab containing {} words".format(len(wordsCount)))
+
+    print("Feats containing {} tags".format(len(featCount)))
+    print("Deprels containing {} tags".format(len(deprelCount)))
+    print("EDeprels containing {} tags".format(len(edeprelCount)))
+
+    ret = {
+        #"vocab": list(wordsCount.keys()),
+        "feats": list(featCount.keys()),
+        "deprels": list(deprelCount.keys()),
+        "edeprels": list(edeprelCount.keys()),
+    }
+
+    return ret
 
 
 def read_conll(filename):
