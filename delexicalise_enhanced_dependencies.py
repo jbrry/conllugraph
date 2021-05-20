@@ -6,7 +6,7 @@ from collections import Counter
 from conllugraph import ConlluGraph
 from graph import stitch_edeps_items, unstitch_edeps_items
 
-LONG_BASIC_LABELS = []
+LONG_BASIC_LABELS = ["nmod:poss"]
 
 """
 Sample sentences:
@@ -126,39 +126,32 @@ class DelexicaliseConllu(object):
                                 # no case information is attached for advcl labels
                                 if enhanced_label.split(":")[0] == "advcl":
                                     lexical_item = enhanced_label.split(":")[-1]
-                                    lexical_index = -1
+                                    
                                 # no case info on acl:relcl labels in ar_padt
                                 elif ":".join([enhanced_label.split(":")[0], enhanced_label.split(":")[1]]) == "acl:relcl": 
                                     lexical_item = enhanced_label.split(":")[-1]
-                                    lexical_index = -1
+                                    
                                 else:
                                     lexical_item = enhanced_label.split(":")[-2]
-                                    lexical_index = -2
+                                    
                             else:
                                 # the morphological case feature is not present, so the lemma will be at the last index.
                                 lexical_item = enhanced_label.split(":")[-1]
-                                lexical_index = -1
+                                
                         else:
                             lexical_item = enhanced_label.split(":")[-1]
-                            lexical_index = -1
+                            
                     else:
                         lexical_item = enhanced_label.split(":")[-1]
-                        lexical_index = -1
 
-                    # if the item we are trying to delexicalise is forbidden, try another index.
                     if lexical_item in self.forbidden_list:
-                        # only do this for morp case langs
-                        if self.attach_morphological_case:
-                            if lexical_index == -1:
-                                try:
-                                    lexical_item = enhanced_label.split(":")[-2]
-                                except IndexError:
-                                    continue
-                            elif lexical_index == -2:
-                                lexical_item = enhanced_label.split(":")[-1]
-                        
-                            if lexical_item in self.forbidden_list:
-                                continue
+                        continue
+
+                    # Not allowed in EUD label
+                    if "-" in lexical_item:
+                        h = lexical_item.split("-")[0]
+                        t = lexical_item.split("-")[1]
+                        lexical_item = f"{h}{t}"
 
                     # Look at the token's children and see if they have modifiers which involve attaching a lemma.
                     for token_child in token.children:
@@ -414,19 +407,25 @@ def get_forbidden_from_vocab(vocab):
     for mf in feats:
         k, v = mf.split("=")
         if k == "Case":
-            case_info = v.lower():
+            case_info = v.lower()
             featForbidden.update([case_info])
 
     for deprel in vocab["deprels"]:
         deprelForbidden.update([deprel])
-    
+        #split on deprel for uncommon parts.
+        if len(deprel.split(":")) == 2:
+            short = deprel.split(":")[0]
+            long = deprel.split(":")[1]
+            deprelForbidden.update([short])
+            deprelForbidden.update([long])
+
     for edeprel in vocab["edeprels"]:
         first = edeprel.split(":")[0]
         edeprelForbidden.update([first])
     
     forbidden = featForbidden + deprelForbidden + edeprelForbidden
     
-    extras = ["obl", "arg", "pass"]
+    extras = ["obl", "arg", "pass", "poss", "xsubj", "mod", "tmod", "prt", "agent", "relcl", "relobj", "alias"]
 
     forbidden_list = list(forbidden.keys()) + extras
 
@@ -471,8 +470,11 @@ def main(argv):
         delexicalise_conllu = DelexicaliseConllu(attach_morphological_case, args.visualise, forbidden_list)
         output_delexicalised_sentences, deprel_count, lexical_item_count, lexicalised_deprels_count = delexicalise_conllu.delexicalise(input_annotated_sentences)
 
-        print(f"{len(lexical_item_count)} removed:"
-            f"{lexical_item_count}")
+        removed = 0
+        for k, v in lexical_item_count.items():
+            print(f"removed {k}, count: {v}")
+            removed += 1
+        print(f"total: {removed}")
 
         write_output_file(args.input, output_delexicalised_sentences, comment_lines)
 

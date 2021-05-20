@@ -138,6 +138,12 @@ class RelexicaliseConllu(object):
                                         if token_grandchild_enhanced_label == "fixed":
                                             lexical_item = f"{lexical_item}_{token_grandchild.lemma}"
 
+                                # Not allowed in EUD label
+                                if "-" in lexical_item:
+                                    h = lexical_item.split("-")[0]
+                                    t = lexical_item.split("-")[1]
+                                    lexical_item = f"{h}{t}"
+
                                 parts = enhanced_label.split(":")
                                 for j, part in enumerate(parts):
                                     relex_part = re.sub("<case_delex>", lexical_item, part)
@@ -159,6 +165,13 @@ class RelexicaliseConllu(object):
                             if token_child_enhanced_label == "mark":
                                 lexical_item = token_child.lemma
 
+                                # Not allowed in EUD label
+                                if "-" in lexical_item:
+                                    h = lexical_item.split("-")[0]
+                                    t = lexical_item.split("-")[1]
+                                    lexical_item = f"{h}{t}"
+
+                                # fr o m -> fr_o_m (spaces filled with underscores), t o m -> t_o_m
                                 parts = enhanced_label.split(":")
                                 for j, part in enumerate(parts):
                                     relex_part = re.sub("<mark_delex>", lexical_item, part)
@@ -179,6 +192,12 @@ class RelexicaliseConllu(object):
                             token_child_enhanced_label = token_child_edep[1]
                             if token_child_enhanced_label == "cc":
                                 lexical_item = token_child.lemma
+
+                                # Not allowed in EUD label
+                                if "-" in lexical_item:
+                                    h = lexical_item.split("-")[0]
+                                    t = lexical_item.split("-")[1]
+                                    lexical_item = f"{h}{t}"
 
                                 parts = enhanced_label.split(":")
                                 for j, part in enumerate(parts):
