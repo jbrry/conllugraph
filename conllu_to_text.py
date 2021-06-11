@@ -51,7 +51,7 @@ def write_output_file(input_path, output_sentences, comment_lines):
 
     parent_dirs = dirname.split("/")
     train_dev_path = parent_dirs[-2]
-    train_dev_path = train_dev_path + "pred-to-misc"
+    train_dev_path = train_dev_path + "-pred-to-misc" # "-gold-to-plainsen" #"-pred-to-misc" "-gold-to-pretok"
     parent_dirs[-2] = train_dev_path
     output_path = parent_dirs
     output_path = "/".join(output_path)
@@ -63,15 +63,30 @@ def write_output_file(input_path, output_sentences, comment_lines):
     outfile = os.path.join(output_path, basename)
     with open(outfile, 'w', encoding='utf-8') as fo:
 
-        for sentence_information, sent in zip(comment_lines.values(), output_sentences):
-            print(sent)
-            for line in sentence_information:
-                fo.write(line + "\n") 
+       for sentence_information, sent in zip(comment_lines.values(), output_sentences):
+            # write comments if necessary
+            # for line in sentence_information:
+            #     fo.write(line + "\n") 
 
+            # PLAINSEN
+            # output_sent = " ".join(sent)
+            # for conllu_line in output_sent:
+            #     fo.write(str(conllu_line))
+            # fo.write("\n")
+
+            # PRETOK
+            # for conllu_token in sent:
+            #     #fo.write(conllu_token.word + "\n")
+            #     fo.write(conllu_token + "\n") # pretok
+            #     #print(str(conllu_token))
+            # fo.write("\n")
+
+            # CONLLU
             for conllu_token in sent:
                 fo.write(str(conllu_token) + "\n")
                 #print(str(conllu_token))
             fo.write("\n")
+
 
 
 class CopyConllu(object):
@@ -83,52 +98,88 @@ class CopyConllu(object):
         """ """
 
         output_sentences = []
-        for input_annotated_sentence, input_secondary_annotated_sentence in zip(input_annotated_sentences, input_secondary_annotated_sentences):
-            #print(f"{input_annotated_sentence} === {input_secondary_annotated_sentences}")
-            copied_misc = self.copy_basic_to_misc(input_annotated_sentence, input_secondary_annotated_sentence)
-            output_sentences.append(copied_misc)
+
+
+
+
+
 
         return output_sentences
 
-    def conllu_to_text(self, annotated_sentence):
+    def conllu_to_text(self, input_annotated_sentences):
 
-        output_sentence = []
+        output_sentences = []
 
-        # Operate on each token apart from ROOT
-        for token in annotated_sentence[1:]:
-            if "-" in token.conllu_id:
-                continue
-            output_sentence.append(token.word)
+        for annotated_sentence in input_annotated_sentences:
+            output_sentence = []
+            for token in annotated_sentence[1:]:
+                if "-" in token.conllu_id:
+                    continue
 
-        return output_sentence
+                # if there is a space, replace it with placeholder so we don't split on it
+                if " " in token.word:
+                    new_token = re.sub(" ", "@SPACE@", token.word)
+                    #print(token.word, new_token)
+                    token.word = new_token
 
-    def copy_basic_to_misc(self, input_annotated_sentence, input_secondary_annotated_sentence):
+                output_sentence.append(token.word)
+            output_sentences.append(output_sentence)
+
+        return output_sentences
+
+    def copy_to_pretok(self, input_annotated_sentences):
+
+        output_sentences = []
+        
+        for annotated_sentence in input_annotated_sentences:
+            output_sentence = []
+            for token in annotated_sentence[1:]:
+                output_sentence.append(token.word)
+            output_sentences.append(output_sentence)
+
+        return output_sentences
+
+
+    def copy_basic_to_misc(self, input_annotated_sentences, input_secondary_annotated_sentences):
         """copy basic tree to misc column"""
 
-        # let's assume pred comes from secondary for the moment
-        #print()
-        #print(input_annotated_sentence)
-        #print(input_secondary_annotated_sentence)
+        output_sentences = []
+
+        for input_annotated_sentence, input_secondary_annotated_sentence in zip(input_annotated_sentences, input_secondary_annotated_sentences):
+
+            output_sentence = []
+            pred_annotations = []
 
 
+            if len(input_annotated_sentence[1:]) != len(input_secondary_annotated_sentence):
+                print("WARNING")
+                print(input_annotated_sentence[1:])
+                print()
+                print(input_secondary_annotated_sentence)
+                #raise ValueError
 
-        output_sentence = []
+            # get all pred labels in the right format;
+            for pred_token in input_secondary_annotated_sentence:
+                head = pred_token.head
+                label = pred_token.deprel
+                head_2_misc = f"Head={head}|Label={label}"
+                pred_annotations.append(head_2_misc)
 
-        pred_annotations = []
-        # get all gold labels in the right format;
-        for pred_token in input_secondary_annotated_sentence[1:]:
-            head = pred_token.head
-            label = pred_token.deprel
-            head_2_misc = f"Head={head}|Label={label}"
-            pred_annotations.append(head_2_misc)
         
-        # now copy pred to gold
-        for gold_token, head_2_misc in zip(input_annotated_sentence[1:], pred_annotations):
-            gold_token.misc = head_2_misc
-            output_sentence.append(gold_token)
+            # now copy pred to gold
+            for gold_token, head_2_misc in zip(input_annotated_sentence[1:], pred_annotations):
+                #print(gold_token.conllu_id)
+                gold_token.misc = head_2_misc
+                output_sentence.append(gold_token)
+
+            assert len(output_sentence) == len(pred_annotations), f"{len(output_sentence)} != {len(pred_annotations)}"
+
+            output_sentences.append(output_sentence)
+
+            
 
         
-        return output_sentence
+        return output_sentences
 
 
 def argparser():
@@ -155,6 +206,20 @@ def main(argv):
 
     conllu_graph = ConlluGraph()
 
+    # Copy GOLD TO PRETOK/PLAINSEN
+    # if args.input:
+    #     base_input = os.path.basename(args.input)
+    #     input_annotated_sentences, input_vocab, input_comment_lines = conllu_graph.build_dataset(args.input)
+    #     input_sentence_edges = conllu_graph.build_edges(input_annotated_sentences)    
+
+    #     copy_conllu = CopyConllu()
+    #     output_sentences = copy_conllu.conllu_to_text(input_annotated_sentences)
+    #     print(output_sentences[0:10])
+
+    #     write_output_file(args.input, output_sentences, input_comment_lines)
+
+
+    # COPY BASIC TO MISC
     if args.input and args.secondary_input:
         base_input = os.path.basename(args.input)
         input_annotated_sentences, input_vocab, input_comment_lines = conllu_graph.build_dataset(args.input)
@@ -165,7 +230,8 @@ def main(argv):
         input_secondary_sentence_edges = conllu_graph.build_edges(input_secondary_annotated_sentences)
 
         copy_conllu = CopyConllu()
-        output_sentences = copy_conllu.copy(input_annotated_sentences, input_secondary_annotated_sentences)
+        output_sentences = copy_conllu.copy_basic_to_misc(input_annotated_sentences, input_secondary_annotated_sentences)
+        print(output_sentences[0:10])
 
         write_output_file(args.input, output_sentences, input_comment_lines)
 
