@@ -53,7 +53,7 @@ def buildVocab(annotated_sentences, cutoff=1):
     return ret
 
 
-def read_conll(filename):
+def read_conll(filename, skip_mwt=True):
     """
     Reads an input CoNLL-U file and parses the various CoNLL-U features.
 
@@ -147,11 +147,10 @@ def read_conll(filename):
         # Normal UD Line
         columns = line.split("\t")
         if len(columns) == 10:
-            # Handle multi-word tokens to save word(s)
-            #if "-" in columns[ID]:
-            #    words.append(get_word(columns, is_mwt=True))
-            # Basic tokens/words
-            #else:
+            if skip_mwt:
+                if "-" in columns[0]:
+                    continue
+
             words.append(get_word(columns))
             if columns[HEAD].isdigit():
                 head = int(columns[HEAD])
