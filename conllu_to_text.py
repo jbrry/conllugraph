@@ -117,11 +117,10 @@ class CopyConllu(object):
 
         for input_annotated_sentence, input_secondary_annotated_sentence in zip(input_annotated_sentences, input_secondary_annotated_sentences):
 
+            #print(input_annotated_sentence)
+            #print(input_secondary_annotated_sentence)
             output_sentence = []
             pred_annotations = []
-
-            if len(input_annotated_sentence[1:]) != len(input_secondary_annotated_sentence):
-                raise ValueError("Sentences do not contain the same number of words!")
 
             # get all pred labels in the right format;
             for pred_token in input_secondary_annotated_sentence:
@@ -130,13 +129,29 @@ class CopyConllu(object):
                 head_2_misc = f"Head={head}|Label={label}"
                 pred_annotations.append(head_2_misc)
 
-            # now copy pred to gold
-            for gold_token, head_2_misc in zip(input_annotated_sentence[1:], pred_annotations):
-                #print(gold_token.conllu_id)
-                gold_token.misc = head_2_misc
-                output_sentence.append(gold_token)
+            print("--")
+            print(len(input_secondary_annotated_sentence))
+            print(len(input_annotated_sentence[1:]))
+            print(input_secondary_annotated_sentence)
+            print(input_annotated_sentence[1:])
 
-            assert len(output_sentence) == len(pred_annotations), f"{len(output_sentence)} != {len(pred_annotations)}"
+
+            # now copy pred to gold
+            i = 0
+            for gold_token in input_annotated_sentence[1:]:
+                print(gold_token.conllu_id)
+                # check if the token is a MWT,
+                _id = gold_token.conllu_id
+                result = re.search("^[0-9]+(-[0-9]+)+$", _id)
+                if result: 
+                    output_sentence.append(gold_token)
+                else:
+                    gold_token.misc = pred_annotations[i]
+                    i += 1
+                    output_sentence.append(gold_token)
+
+            assert i == len(pred_annotations)
+            #assert len(output_sentence) == len(pred_annotations), f"{len(output_sentence)} != {len(pred_annotations)}"
 
             output_sentences.append(output_sentence)
 
