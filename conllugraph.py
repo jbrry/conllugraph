@@ -1,16 +1,16 @@
 from utils import read_conll, buildVocab
 
 class ConlluGraph:
-    def __init__(self):
+    def __init__(self, skip_mwt=False):
         """ ConlluGraph. """
 
         pass
 
-    def build_dataset(self, filename):
+    def build_dataset(self, filename, skip_mwt):
         """Reads an input CoNLL-U file and returns a list of ConlluToken objects for each token in a sentence."""
-
         print("Building dataset using {}".format(filename))
-        annotated_sentences, comment_lines = read_conll(filename)
+        print("Skipping MWTs: {}".format(skip_mwt))
+        annotated_sentences, comment_lines = read_conll(filename, skip_mwt)
         vocab = buildVocab(annotated_sentences, cutoff=1)
         return annotated_sentences, vocab, comment_lines
 

@@ -53,7 +53,7 @@ def buildVocab(annotated_sentences, cutoff=1):
     return ret
 
 
-def read_conll(filename, skip_mwt=True):
+def read_conll(filename, skip_mwt=False):
     """
     Reads an input CoNLL-U file and parses the various CoNLL-U features.
 

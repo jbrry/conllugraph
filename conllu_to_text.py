@@ -10,13 +10,13 @@ from graph import stitch_edeps_items, unstitch_edeps_items
 to be automated:
 
 # plainsen mode
-python conllugraph/conllu_to_text.py -i data/train-dev/UD_English-GUM/en_gum-ud-train.conllu
+python conllugraph/conllu_to_text.py -i data/train-dev/UD_Tamil-TTB/ta_ttb-ud-train.conllu --mode gold-to-plainsen
 
 # predict with trankit
 python scripts/trankit_predict.py data/train-dev-gold-to-plainsen/UD_English-GUM/en_gum-ud-train.conllu english trankit_predicted/en_gum-ud-train.conllu
 
 # basic to misc
-python conllugraph/conllu_to_text.py -i data/train-dev/UD_English-GUM/en_gum-ud-train.conllu -s trankit_predicted/en_gum-ud-train.conllu
+python conllugraph/conllu_to_text.py -i data/train-dev/UD_Tamil-TTB/ta_ttb-ud-train.conllu -s trankit_predicted/ta_ttb-ud-train.conllu --mode pred-to-misc
 
 """
 
@@ -129,17 +129,10 @@ class CopyConllu(object):
                 head_2_misc = f"Head={head}|Label={label}"
                 pred_annotations.append(head_2_misc)
 
-            print("--")
-            print(len(input_secondary_annotated_sentence))
-            print(len(input_annotated_sentence[1:]))
-            print(input_secondary_annotated_sentence)
-            print(input_annotated_sentence[1:])
-
 
             # now copy pred to gold
             i = 0
             for gold_token in input_annotated_sentence[1:]:
-                print(gold_token.conllu_id)
                 # check if the token is a MWT,
                 _id = gold_token.conllu_id
                 result = re.search("^[0-9]+(-[0-9]+)+$", _id)
@@ -172,6 +165,8 @@ def argparser():
     help='Type of copying to perform.')    
     ap.add_argument('-ws', '--write-stats', metavar='FILE', default=None,
     help='Write statistics.')
+    ap.add_argument('--skip-mwt', default=False, action='store_true',
+    help='Skip MWTs in the reader.')
     ap.add_argument('-q', '--quiet', default=False, action='store_true',
     help='Do not display certain helper information.')
     return ap
@@ -186,8 +181,8 @@ def main(argv):
         print("Copying Gold CoNLLU file to plain text.")
 
         base_input = os.path.basename(args.input)
-        input_annotated_sentences, input_vocab, input_comment_lines = conllu_graph.build_dataset(args.input)
-        input_sentence_edges = conllu_graph.build_edges(input_annotated_sentences)    
+        input_annotated_sentences, input_vocab, input_comment_lines = conllu_graph.build_dataset(args.input, args.skip_mwt)
+        input_sentence_edges = conllu_graph.build_edges(input_annotated_sentences)
 
         copy_conllu = CopyConllu()
         output_sentences = copy_conllu.conllu_to_text(input_annotated_sentences)
@@ -199,11 +194,11 @@ def main(argv):
         print("Copying predicted labels to misc.")
         if args.input and args.secondary_input:
             base_input = os.path.basename(args.input)
-            input_annotated_sentences, input_vocab, input_comment_lines = conllu_graph.build_dataset(args.input)
+            input_annotated_sentences, input_vocab, input_comment_lines = conllu_graph.build_dataset(args.input, args.skip_mwt)
             input_sentence_edges = conllu_graph.build_edges(input_annotated_sentences)
 
             base_secondary_input = os.path.basename(args.secondary_input)
-            input_secondary_annotated_sentences, vocab, comment_lines = conllu_graph.build_dataset(args.secondary_input)
+            input_secondary_annotated_sentences, vocab, comment_lines = conllu_graph.build_dataset(args.secondary_input, args.skip_mwt)
             input_secondary_sentence_edges = conllu_graph.build_edges(input_secondary_annotated_sentences)
 
             copy_conllu = CopyConllu()
